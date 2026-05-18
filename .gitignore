@@ -1,0 +1,13 @@
+.vscode/
+.clangd
+
+gst-plugins-rs/
+gstreamer/
+openvidu-livekit-tutorials/
+openvidu-local-deployment/
+livekit-cli/
+videos/
+
+# compiled files
+libs/
+bin/

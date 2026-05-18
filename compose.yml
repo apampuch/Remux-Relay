@@ -1,0 +1,30 @@
+name: remux-relay
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    ports:
+      - "8554:8554"
+      - "1935:1935"
+      - "8888:8888"
+      - "8889:8889"
+      - "8890:8890/udp"
+      - "8189:8189/udp"
+    environment:
+        - MTX_RTSPTRANSPORTS=tcp
+        - MTX_WEBRTCADDITIONALHOSTS=127.0.0.1
+
+  web:
+    image: nginx:alpine
+    ports:
+      - "8081:80"
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+
+  remux-relay:
+    image: remux-relay:0.5
+    depends_on:
+      - mediamtx
+    stdin_open: true   # -i
+    tty: true          # -t
+    volumes:
+      - ./videos:/videos:ro
