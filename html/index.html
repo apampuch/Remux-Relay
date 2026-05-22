@@ -5,7 +5,7 @@
   </head>
   <body>
     <div id="videoContainer">
-      <video id="videoPlayer" autoplay playsinline poster="poster.png"></video>
+      <video id="videoPlayer" autoplay playsinline poster="poster.webp"></video>
     </div>
     <script>
       async function start() {
@@ -46,7 +46,7 @@
 
         const host = window.location.hostname;
 
-        const res = await fetch(`http://{host}:8889/stream/whep`, {
+        const res = await fetch(`http://${host}:8889/stream/whep`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/sdp'
