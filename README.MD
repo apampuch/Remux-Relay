@@ -6,7 +6,43 @@ The following gst-plugins-rs built:
 - `webrtc`
 - `webrtchttp`
 
+(last tested commit is `153ccd0624e820958eff474f1da67b051fc42e37`)
+
 The files `libgstrsrtp.so` `libgstrswebrtc.so` `libgstwebrtchttp.so` should all be placed in `libs/`
+
+## Docker Compose File
+```yaml
+name: remux-relay
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    ports:
+      - "8554:8554"
+      - "1935:1935"
+      - "8888:8888"
+      - "8889:8889"
+      - "8890:8890/udp"
+      - "8189:8189/udp"
+    environment:
+        - MTX_RTSPTRANSPORTS=tcp
+        - MTX_WEBRTCADDITIONALHOSTS=127.0.0.1  # SET THIS TO YOUR SERVER'S EXTERNAL IP
+
+  web:
+    image: nginx:alpine
+    ports:
+      - "8080:80"  # or whatever port you want to expose
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+
+  remux-relay:
+    image: apampuch/remux-relay:latest
+    depends_on:
+      - mediamtx
+    stdin_open: true   # -i
+    tty: true          # -t
+    volumes:
+      - ./videos:/videos:ro
+```
 
 # Suggested Encode Options
 ```bash
