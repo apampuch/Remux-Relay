@@ -5,7 +5,7 @@
   </head>
   <body>
     <div id="videoContainer">
-      <video id="videoPlayer" autoplay playsinline></video>
+      <video id="videoPlayer" autoplay playsinline poster="splash.png"></video>
     </div>
     <script>
       async function start() {
@@ -43,13 +43,17 @@
           };
         });
         console.log('offer SDP:', pc.localDescription.sdp);
-        const res = await fetch('http://localhost:8889/stream/whep', {
+
+        const host = window.location.hostname;
+
+        const res = await fetch(`http://{host}:8889/stream/whep`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/sdp'
           },
           body: pc.localDescription.sdp
         });
+
         if (!res.ok) {
           console.error('WHEP error:', res.status, await res.text());
           return;
