@@ -21,7 +21,6 @@ ffmpeg \
   -b:v 10M \
   -bufsize 2M \
   -pix_fmt yuv420p \
-  -tune zerolatency \
   -level 4.1 \
   -x264-params "bframes=0:keyint=24" \
   -c:a libopus \
@@ -31,6 +30,8 @@ ffmpeg \
   -map_chapters -1 \
   output.mkv
 ```
+You MUST leave out b-frames.
+No min-keyint
 
 # Test Command
 ```bash
