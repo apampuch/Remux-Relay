@@ -254,9 +254,9 @@ int main(int argc, char *argv[]) {
     // build the source, sink, filters
     components.source       = gst_element_factory_make("filesrc", "source");
     components.demux        = gst_element_factory_make("matroskademux", "demux");
-    components.video_queue  = gst_element_factory_make("queue", "video_queue");
+    components.video_queue  = gst_element_factory_make("queue2", "video_queue");
     components.video_parse  = gst_element_factory_make("h264parse", "video_parse");
-    components.audio_queue  = gst_element_factory_make("queue", "audio_queue");
+    components.audio_queue  = gst_element_factory_make("queue2", "audio_queue");
     components.audio_parse  = gst_element_factory_make("opusparse", "audio_parse");
     components.whip_sink    = gst_element_factory_make("whipclientsink", "sink");
 
