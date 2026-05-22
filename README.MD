@@ -1,6 +1,13 @@
 # Requirements
 docker
 
+The following gst-plugins-rs built:
+- `rtp`
+- `webrtc`
+- `webrtchttp`
+
+The files `libgstrsrtp.so` `libgstrswebrtc.so` `libgstwebrtchttp.so` should all be placed in `libs/`
+
 # Suggested Encode Options
 ```bash
 ffmpeg \
