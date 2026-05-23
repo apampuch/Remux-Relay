@@ -369,6 +369,13 @@ int main(int argc, char *argv[]) {
         NULL
     );
 
+    // add async handling to whipclientsink
+    gst_util_set_object_arg(
+        G_OBJECT(components.whip_sink),
+        "async-handling",
+        "true"
+    );
+
     // set the file 
     g_object_set(components.source, "location", "/videos/test.mkv", NULL);
     
