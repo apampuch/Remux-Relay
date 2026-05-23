@@ -39,7 +39,6 @@ libjansson-dev
 
 COPY ./libs /app/webrtchttp/
 COPY ./bin/ /app/bin/
-# COPY ./www /app/html
 
 ENV GST_PLUGIN_PATH="/app/webrtchttp/"
 

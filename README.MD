@@ -28,11 +28,9 @@ services:
         - MTX_WEBRTCADDITIONALHOSTS=127.0.0.1  # SET THIS TO YOUR SERVER'S EXTERNAL IP
 
   web:
-    image: nginx:alpine
+    image: apampuch/remux-relay-web:latest
     ports:
       - "8080:80"  # or whatever port you want to expose
-    volumes:
-      - ./html:/usr/share/nginx/html:ro
 
   remux-relay:
     image: apampuch/remux-relay:latest
