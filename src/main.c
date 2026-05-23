@@ -346,7 +346,7 @@ int main(int argc, char *argv[]) {
     g_object_unref(signaller);
 
     // set congestion control
-    g_object_set(components.whip_sink, "congestion-control", 0, NULL);
+    g_object_set(components.whip_sink, "congestion-control", 1, NULL);
 
     /* Connect to the pad-added signal */
     g_signal_connect(components.demux, "pad-added", G_CALLBACK (pad_added_handler), &components);
