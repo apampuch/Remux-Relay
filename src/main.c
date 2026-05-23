@@ -335,7 +335,7 @@ int main(int argc, char *argv[]) {
         components.video_queue,
         "max-size-buffers", 0,
         "max-size-bytes", 0,
-        "max-size-time", 500 * GST_MSECOND,
+        "max-size-time", 50 * GST_MSECOND,
         "leaky", 2,
         NULL
     );
