@@ -362,6 +362,13 @@ int main(int argc, char *argv[]) {
         NULL
     );
 
+    // inject SPS/PPS
+    g_object_set(
+        components.video_parse,
+        "config-interval", -1,
+        NULL
+    );
+
     // set the file 
     g_object_set(components.source, "location", "/videos/test.mkv", NULL);
     
