@@ -25,8 +25,8 @@
 
 typedef struct _StreamComponents {
     GstElement *pipeline, *source, *demux;
-    GstElement *video_queue, *video_parse;
-    GstElement *audio_queue, *audio_parse;
+    GstElement *video_queue, *video_identity, *video_parse;
+    GstElement *audio_queue, *audio_identity, *audio_parse;
     GstElement *whip_sink;
 } StreamComponents;
 
@@ -281,8 +281,10 @@ int main(int argc, char *argv[]) {
         components.source,
         components.demux,
         components.video_queue,
+        components.video_identity,
         components.video_parse,
-        components.audio_queue, 
+        components.audio_queue,
+        components.audio_identity,
         components.audio_parse,
         components.whip_sink,
         NULL
@@ -302,6 +304,7 @@ int main(int argc, char *argv[]) {
 
     try_link = gst_element_link_many(
         components.video_queue,
+        components.video_identity,
         components.video_parse,
         components.whip_sink,
         NULL);
@@ -314,6 +317,7 @@ int main(int argc, char *argv[]) {
 
     try_link = gst_element_link_many(
         components.audio_queue,
+        components.audio_identity,
         components.audio_parse,
         components.whip_sink,
         NULL);
@@ -341,8 +345,22 @@ int main(int argc, char *argv[]) {
         "leaky", 2,
         NULL
     );
-        
-    // set the file
+
+    // configure identity filters
+    g_object_set(
+        components.video_identity,
+        "sync", TRUE,
+        "single-segment", TRUE,
+        NULL
+    );
+    g_object_set(
+        components.audio_identity,
+        "sync", TRUE,
+        "single-segment", TRUE,
+        NULL
+    );
+
+    // set the file 
     g_object_set(components.source, "location", "/videos/test.mkv", NULL);
     
     // set the whip endpoint
