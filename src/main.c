@@ -379,6 +379,14 @@ int main(int argc, char *argv[]) {
     // set the file 
     g_object_set(components.source, "location", "/videos/test.mkv", NULL);
     
+    // set pipeline latency
+    g_object_set(
+        components.pipeline,
+        "latency",
+        500,
+        NULL
+    );
+
     // set the whip endpoint
     GObject *signaller = NULL;
     g_object_get(
