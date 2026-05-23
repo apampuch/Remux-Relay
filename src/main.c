@@ -25,8 +25,8 @@
 
 typedef struct _StreamComponents {
     GstElement *pipeline, *source, *demux;
-    GstElement *video_queue, *video_identity, *video_parse;
-    GstElement *audio_queue, *audio_identity, *audio_parse;
+    GstElement /* *video_queue, */ *video_identity, *video_parse;
+    // GstElement *audio_queue, *audio_identity, *audio_parse;
     GstElement *whip_sink;
 } StreamComponents;
 
@@ -187,9 +187,9 @@ static void pad_added_handler(GstElement * src, GstPad * new_pad, StreamComponen
 
     // TODO maybe also check the suffix to make sure our codecs are good as well
     if (g_str_has_prefix(new_pad_type, "video/")) {
-        sink_pad = gst_element_get_static_pad(components->video_queue, "sink");
-    } else if (g_str_has_prefix(new_pad_type, "audio/")) {
-        sink_pad = gst_element_get_static_pad(components->audio_queue, "sink");
+        sink_pad = gst_element_get_static_pad(components->/*video_queue*/video_identity, "sink");
+    // } else if (g_str_has_prefix(new_pad_type, "audio/")) {
+    //     sink_pad = gst_element_get_static_pad(components->audio_queue, "sink");
     } else {
         g_print("Invalid pad type %s", new_pad_type);
         goto pad_handler_exit;
@@ -254,12 +254,12 @@ int main(int argc, char *argv[]) {
     // build the source, sink, filters
     components.source           = gst_element_factory_make("filesrc", "source");
     components.demux            = gst_element_factory_make("matroskademux", "demux");
-    components.video_queue      = gst_element_factory_make("queue2", "video_queue");
+    // components.video_queue      = gst_element_factory_make("queue2", "video_queue");
     components.video_identity   = gst_element_factory_make("identity", "video_identity");
     components.video_parse      = gst_element_factory_make("h264parse", "video_parse");
-    components.audio_queue      = gst_element_factory_make("queue2", "audio_queue");
-    components.audio_identity   = gst_element_factory_make("identity", "audio_identity");
-    components.audio_parse      = gst_element_factory_make("opusparse", "audio_parse");
+    // components.audio_queue      = gst_element_factory_make("queue2", "audio_queue");
+    // components.audio_identity   = gst_element_factory_make("identity", "audio_identity");
+    // components.audio_parse      = gst_element_factory_make("opusparse", "audio_parse");
     components.whip_sink        = gst_element_factory_make("whipclientsink", "sink");
 
     components.pipeline = gst_pipeline_new("main-pipeline");
@@ -267,10 +267,10 @@ int main(int argc, char *argv[]) {
     if (!components.pipeline ||
         !components.source ||
         !components.demux ||
-        !components.video_queue ||
+        // !components.video_queue ||
         !components.video_parse ||
-        !components.audio_queue ||
-        !components.audio_parse ||
+        // !components.audio_queue ||
+        // !components.audio_parse ||
         !components.whip_sink
     ) {
         g_printerr ("Not all elements could be created.\n");
@@ -282,12 +282,12 @@ int main(int argc, char *argv[]) {
         GST_BIN(components.pipeline), 
         components.source,
         components.demux,
-        components.video_queue,
+        // components.video_queue,
         components.video_identity,
         components.video_parse,
-        components.audio_queue,
-        components.audio_identity,
-        components.audio_parse,
+        // components.audio_queue,
+        // components.audio_identity,
+        // components.audio_parse,
         components.whip_sink,
         NULL
     );
@@ -305,7 +305,7 @@ int main(int argc, char *argv[]) {
     }
 
     try_link = gst_element_link_many(
-        components.video_queue,
+        // components.video_queue,
         components.video_identity,
         components.video_parse,
         components.whip_sink,
@@ -317,12 +317,12 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    try_link = gst_element_link_many(
-        components.audio_queue,
-        components.audio_identity,
-        components.audio_parse,
-        components.whip_sink,
-        NULL);
+    // try_link = gst_element_link_many(
+    //     components.audio_queue,
+    //     components.audio_identity,
+    //     components.audio_parse,
+    //     components.whip_sink,
+    //     NULL);
 
     if (!try_link) {
         g_printerr ("Audio components could not be linked.\n");
@@ -331,34 +331,34 @@ int main(int argc, char *argv[]) {
     }
         
     // configure queues for livestreaming
-    g_object_set(
-        components.video_queue,
-        "max-size-buffers", 0,
-        "max-size-bytes", 0,
-        "max-size-time", 50 * GST_MSECOND,
-        NULL
-    );
-    g_object_set(
-        components.audio_queue,
-        "max-size-buffers", 0,
-        "max-size-bytes", 0,
-        "max-size-time", 50 * GST_MSECOND,
-        NULL
-    );
+    // g_object_set(
+    //     components.video_queue,
+    //     "max-size-buffers", 0,
+    //     "max-size-bytes", 0,
+    //     "max-size-time", 50 * GST_MSECOND,
+    //     NULL
+    // );
+    // g_object_set(
+    //     components.audio_queue,
+    //     "max-size-buffers", 0,
+    //     "max-size-bytes", 0,
+    //     "max-size-time", 50 * GST_MSECOND,
+    //     NULL
+    // );
 
     // configure identity filters
     g_object_set(
         components.video_identity,
-        // "sync", TRUE,
+        "sync", TRUE,
         "single-segment", TRUE,
         NULL
     );
-    g_object_set(
-        components.audio_identity,
-        // "sync", TRUE,
-        "single-segment", TRUE,
-        NULL
-    );
+    // g_object_set(
+    //     components.audio_identity,
+    //     // "sync", TRUE,
+    //     "single-segment", TRUE,
+    //     NULL
+    // );
 
     // inject SPS/PPS
     g_object_set(
