@@ -324,6 +324,24 @@ int main(int argc, char *argv[]) {
         return -1;
     }
         
+    // configure queues for livestreaming
+    g_object_set(
+        components.video_queue,
+        "max-size-buffers", 0,
+        "max-size-bytes", 0,
+        "max-size-time", 500 * GST_MSECOND,
+        "leaky", 2,
+        NULL
+    );
+    g_object_set(
+        components.audio_queue,
+        "max-size-buffers", 0,
+        "max-size-bytes", 0,
+        "max-size-time", 500 * GST_MSECOND,
+        "leaky", 2,
+        NULL
+    );
+        
     // set the file
     g_object_set(components.source, "location", "/videos/test.mkv", NULL);
     
