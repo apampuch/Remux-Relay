@@ -336,7 +336,6 @@ int main(int argc, char *argv[]) {
         "max-size-buffers", 0,
         "max-size-bytes", 0,
         "max-size-time", 50 * GST_MSECOND,
-        "leaky", 2,
         NULL
     );
     g_object_set(
