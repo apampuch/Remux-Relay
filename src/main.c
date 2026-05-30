@@ -401,6 +401,14 @@ int main(int argc, char *argv[]) {
         NULL
     );
 
+    // fake a livestream
+    g_object_set(
+        components.source,
+        "blocksize",
+        4096,
+        NULL
+    );
+
     g_object_unref(signaller);
 
     // set congestion control
