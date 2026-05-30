@@ -174,6 +174,14 @@ static gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpoi
     return TRUE;
 }
 
+static void deep_element_added(GstBin *bin, GstBin *sub_bin, GstElement *element, gpointer data) {
+    const gchar *name = GST_ELEMENT_NAME(element);
+    if (g_str_has_prefix(name, "rtph264pay")) {
+        g_print("Caught rtph264pay: %s, setting aggregate-mode\n", name);
+        g_object_set(element, "aggregate-mode", 0, NULL);
+    }
+}
+
 static void pad_added_handler(GstElement * src, GstPad * new_pad, StreamComponents * data) {
     StreamComponents *components = (StreamComponents *)data;
 
@@ -416,6 +424,8 @@ int main(int argc, char *argv[]) {
 
     /* Connect to the pad-added signal */
     g_signal_connect(components.demux, "pad-added", G_CALLBACK (pad_added_handler), &components);
+
+    g_signal_connect(components.pipeline, "deep-element-added", G_CALLBACK(deep_element_added), NULL);
 
     // start playing
     gst_element_set_state(components.pipeline, GST_STATE_PLAYING);
