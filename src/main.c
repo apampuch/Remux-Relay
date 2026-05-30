@@ -7,6 +7,7 @@
 #include "gst/gstelement.h"
 #include "gst/gstelementfactory.h"
 #include "gst/gstformat.h"
+#include "gst/gstinfo.h"
 #include "gst/gstmessage.h"
 #include "gst/gstpad.h"
 #include "gst/gstpipeline.h"
