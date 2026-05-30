@@ -382,7 +382,7 @@ int main(int argc, char *argv[]) {
     g_object_set(
         components.pipeline,
         "latency",
-        500,
+        50 * GST_MSECOND,
         NULL
     );
 
