@@ -253,7 +253,7 @@ int main(int argc, char *argv[]) {
 
     // build the source, sink, filters
     components.source           = gst_element_factory_make("filesrc", "source");
-    components.demux            = gst_element_factory_make("matroskademux", "demux");
+    components.demux            = gst_element_factory_make("qtdemux", "demux");
     // components.video_queue      = gst_element_factory_make("queue2", "video_queue");
     components.video_identity   = gst_element_factory_make("identity", "video_identity");
     components.video_parse      = gst_element_factory_make("h264parse", "video_parse");
@@ -375,7 +375,7 @@ int main(int argc, char *argv[]) {
     );
 
     // set the file 
-    g_object_set(components.source, "location", "/videos/test.mkv", NULL);
+    g_object_set(components.source, "location", "/videos/test.mp4", NULL);
     
     // set pipeline latency
     g_object_set(
