@@ -7,65 +7,6 @@
     <div id="videoContainer">
       <video id="videoPlayer" autoplay playsinline poster="poster.webp"></video>
     </div>
-    <script>
-      async function start() {
-        const pc = new RTCPeerConnection({
-          iceServers: [{
-            urls: 'stun:stun.l.google.com:19302'
-          }]
-        });
-        pc.addTransceiver('video', {
-          direction: 'recvonly'
-        });
-        pc.addTransceiver('audio', {
-          direction: 'recvonly'
-        });
-        pc.ontrack = ({
-          streams
-        }) => {
-          console.log('ontrack fired', streams);
-          document.getElementById('videoPlayer').srcObject = streams[0];
-        };
-        pc.oniceconnectionstatechange = () => console.log('ICE state:', pc.iceConnectionState);
-        pc.onconnectionstatechange = () => console.log('connection state:', pc.connectionState);
-        // pc.createOffer()
-        //   .then(offer => pc.setLocalDescription(offer))
-        //   .then(() => {
-        //     console.log("done");
-        //   });
-        // maybe replace this with above block so we don't have to wrap in async
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        await new Promise(resolve => {
-          if (pc.iceGatheringState === 'complete') return resolve();
-          pc.onicegatheringstatechange = () => {
-            if (pc.iceGatheringState === 'complete') resolve();
-          };
-        });
-        console.log('offer SDP:', pc.localDescription.sdp);
-
-        const host = window.location.hostname;
-
-        const res = await fetch(`http://${host}:8889/stream/whep`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/sdp'
-          },
-          body: pc.localDescription.sdp
-        });
-
-        if (!res.ok) {
-          console.error('WHEP error:', res.status, await res.text());
-          return;
-        }
-        const answer = await res.text();
-        console.log('answer SDP:', answer);
-        await pc.setRemoteDescription({
-          type: 'answer',
-          sdp: answer
-        });
-      }
-      start();
-    </script>
+    <script src="stream.js"></script>
   </body>
 </html>
