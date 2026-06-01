@@ -1,4 +1,23 @@
+const protocol = window.location.protocol === "https:"
+    ? "wss:"
+    : "ws:";
+const host = window.location.host;
+const ws = new WebSocket(`${protocol}://${host}/ws`)
+
+ws.addEventListener("open", () => {
+    log("Connected to websocket.");
+    // TODO get metadata or something
+});
+
+ws.addEventListener("error", () => {
+    log("ERROR");
+});
+
 function send_command(command_obj) {
+
+}
+
+function get_playing_state() {
 
 }
 
@@ -12,9 +31,9 @@ function play_pause() {
         cmd.command = "play";
     }
 
-    send_command(cmd);
+    ws.send(JSON.stringify(cmd));
 }
 
-function seek() {
-    
+function seek(timestamp) {
+    // probably have the function that calls this pass in the timestamp
 }
