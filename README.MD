@@ -8,6 +8,8 @@ The following gst-plugins-rs built:
 
 (last tested commit is `153ccd0624e820958eff474f1da67b051fc42e37`)
 
+(last tested gstreamer commit is `8f181e21d540065930a70b4c355b4df4dc81c575`)
+
 The files `libgstrsrtp.so` `libgstrswebrtc.so` `libgstwebrtchttp.so` should all be placed in `libs/`
 
 ## Docker Compose File

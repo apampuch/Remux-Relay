@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="player.css">
+  </head>
+  <body>
+    <div id="videoContainer">
+      <video id="videoPlayer" autoplay playsinline poster="poster.webp"></video>
+    </div>
+    <script src="stream.js"></script>
+    <div id="controlsContainer">
+        <div class="controlsRow">
+            <button class="controlButton">⟲</button>
+            <button class="controlButton">⏯︎</button>
+            <button class="controlButton">⟳</button>
+            <p>File:</p> <select></select> <button class="playFileButton">PLAY</button>
+        </div>
+        <div class="controlsRow">
+            <p>File Password:</p> <input type="text" id="filePassword">
+        </div>
+    </div>
+  </body>
+</html>
