@@ -26,6 +26,8 @@
 FROM ubuntu:24.04
 WORKDIR /app
 
+RUN mkdir /sockets
+
 RUN apt-get update
 RUN apt-get install -y \
 gstreamer1.0-tools \

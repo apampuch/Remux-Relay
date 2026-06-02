@@ -38,6 +38,8 @@ services:
     image: apampuch/remux-relay-bridge:latest
     expose:
       - "3000"
+    volumes:
+      - socket-volume:/sockets
 
   remux-relay:
     image: apampuch/remux-relay:latest
@@ -47,6 +49,10 @@ services:
     tty: true          # -t
     volumes:
       - ./videos:/videos:ro
+      - socket-volume:/sockets
+
+volumes:
+  socket-volume:
 ```
 
 # Suggested Encode Options
