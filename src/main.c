@@ -20,8 +20,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+
+#define SOCKET_PATH "/socket/relay.sock"
 
 typedef struct _StreamComponents {
     GstElement *pipeline, *source, *demux;
@@ -227,13 +230,16 @@ int main(int argc, char *argv[]) {
 
     server_addr.sun_family = AF_UNIX;
     // TODO make this go in another directory
-    strcpy(server_addr.sun_path, "/tmp/unix_socket");
+    strcpy(server_addr.sun_path, SOCKET_PATH);
 
     int slen = sizeof(server_addr);
     
     // unlink before binding just in case there's one that didn't clear
     unlink(server_addr.sun_path);
     int bind_success = bind(server_socket, (struct sockaddr *) &server_addr, slen);
+
+    // may need to chmod the socket
+    chmod(SOCKET_PATH, 0666);
 
     if (bind_success != 0) {
         perror("Bind not successful:");
