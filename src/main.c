@@ -227,7 +227,7 @@ int main(int argc, char *argv[]) {
 
     server_addr.sun_family = AF_UNIX;
     // TODO make this go in another directory
-    strcpy(server_addr.sun_path, "unix_socket");
+    strcpy(server_addr.sun_path, "/tmp/unix_socket");
 
     int slen = sizeof(server_addr);
     
