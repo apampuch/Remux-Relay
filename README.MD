@@ -34,6 +34,11 @@ services:
     ports:
       - "8080:80"  # or whatever port you want to expose
 
+  backend:
+    image: apampuch/remux-relay-bridge:latest
+    expose:
+      - "3000"
+
   remux-relay:
     image: apampuch/remux-relay:latest
     depends_on:
