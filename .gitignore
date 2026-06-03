@@ -11,3 +11,5 @@ videos/
 # compiled files
 libs/
 bin/
+
+build.sh

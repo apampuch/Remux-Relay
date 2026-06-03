@@ -23,7 +23,7 @@ name: remux-relay
 services:
   mediamtx:
     container_name: rr-mediamtx
-    image: bluenviron/mediamtx:latest
+    image: bluenviron/mediamtx:1.18.2  # 1.19 has issues with ICE for some reason
     ports:
       - "8554:8554"
       - "1935:1935"
