@@ -8,8 +8,10 @@ openvidu-local-deployment/
 livekit-cli/
 videos/
 makefile
+.gitignore
 
 # server specific things
 libs/
 src/
 bin/
+ws-bridge/
