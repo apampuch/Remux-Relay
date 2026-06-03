@@ -24,7 +24,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#define SOCKET_PATH "/socket/relay.sock"
+#define SOCKET_PATH "/sockets/relay.sock"
 
 typedef struct _StreamComponents {
     GstElement *pipeline, *source, *demux;
@@ -229,7 +229,6 @@ int main(int argc, char *argv[]) {
     server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 
     server_addr.sun_family = AF_UNIX;
-    // TODO make this go in another directory
     strcpy(server_addr.sun_path, SOCKET_PATH);
 
     int slen = sizeof(server_addr);
@@ -242,7 +241,7 @@ int main(int argc, char *argv[]) {
     chmod(SOCKET_PATH, 0666);
 
     if (bind_success != 0) {
-        perror("Bind not successful:");
+        perror("Bind not successful: ");
         close(server_socket);
         exit(1);
     }
