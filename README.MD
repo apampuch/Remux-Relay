@@ -62,6 +62,10 @@ services:
 
 volumes:
   socket-volume:
+
+networks:
+  default:
+    name: rr-network
 ```
 
 # Suggested Encode Options
