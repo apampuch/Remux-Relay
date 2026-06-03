@@ -9,6 +9,8 @@ livekit-cli/
 videos/
 src/
 makefile
+.gitignore
 
 # web specific things
 html/
+ws-bridge/

@@ -8,6 +8,7 @@ openvidu-local-deployment/
 livekit-cli/
 videos/
 makefile
+.gitignore
 
 # server specific things
 libs/

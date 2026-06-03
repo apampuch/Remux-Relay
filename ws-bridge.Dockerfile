@@ -2,7 +2,7 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-COPY ws-bridge/package*.json .
+COPY ws-bridge/ .
 
 RUN npm ci
 
