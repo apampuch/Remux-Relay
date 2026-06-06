@@ -13,11 +13,11 @@ pc.addTransceiver('audio', {
 pc.ontrack = ({
     streams
 }) => {
-    console.log('ontrack fired', streams);
+    // console.log('ontrack fired', streams);
     document.getElementById('videoPlayer').srcObject = streams[0];
 };
-pc.oniceconnectionstatechange = () => console.log('ICE state:', pc.iceConnectionState);
-pc.onconnectionstatechange = () => console.log('connection state:', pc.connectionState);
+// pc.oniceconnectionstatechange = () => console.log('ICE state:', pc.iceConnectionState);
+// pc.onconnectionstatechange = () => console.log('connection state:', pc.connectionState);
 // pc.createOffer()
 //   .then(offer => pc.setLocalDescription(offer))
 //   .then(() => {
@@ -32,7 +32,7 @@ await new Promise(resolve => {
     if (pc.iceGatheringState === 'complete') resolve();
     };
 });
-console.log('offer SDP:', pc.localDescription.sdp);
+// console.log('offer SDP:', pc.localDescription.sdp);
 
 const host = window.location.hostname;
 
@@ -49,7 +49,7 @@ if (!res.ok) {
     return;
 }
 const answer = await res.text();
-console.log('answer SDP:', answer);
+// console.log('answer SDP:', answer);
 await pc.setRemoteDescription({
     type: 'answer',
     sdp: answer
