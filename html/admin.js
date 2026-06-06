@@ -2,7 +2,7 @@ const protocol = window.location.protocol === "https:"
     ? "wss:"
     : "ws:";
 const host = window.location.host;
-const ws = new WebSocket(`${protocol}://${host}/ws`)
+const ws = new WebSocket(`${protocol}//${host}/ws`);
 
 const pendingRequests = new Map();
 
@@ -26,7 +26,7 @@ ws.addEventListener("message", (event) => {
 });
 
 ws.addEventListener("error", () => {
-    log("ERROR");
+    console.log("ERROR");
 });
 
 ws.onmessage
