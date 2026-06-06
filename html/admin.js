@@ -36,35 +36,37 @@ function send_command(command_obj) {
 }
 
 function get_playing_state() {
-    const cmd = {};
+    const id = crypto.randomUUID();
 
+    const cmd = {
+        "command": "get_play_state",
+        "id": crypto.randomUUID()
+    };
 
-
-    ws.send(JSON.stringify(cmd));
     return new Promise((resolve) => {
-        const id = crypto.randomUUID();
-
         pendingRequests.set(id, resolve);
-
-        ws.send(JSON.stringify(
-            id,
-            type,
-            cmd
-        ))
+        ws.send(JSON.stringify(cmd));
+        // ws.send(JSON.stringify(
+        //     id,
+        //     type,
+        //     cmd
+        // ))
     });
 }
 
 function play_pause() {
-    const cmd = {};
+    const cmd = {"command": "toggle"};
 
-    const playing_state = await get_playing_state();
+    console.log("Toggling");
 
-    if (true) { // if playing
-        cmd.command = "pause";    
-    }
-    else {
-        cmd.command = "play";
-    }
+    // const playing_state = await get_playing_state();
+
+    // if (true) { // if playing
+    //     cmd.command = "pause";    
+    // }
+    // else {
+    //     cmd.command = "play";
+    // }
 
     ws.send(JSON.stringify(cmd));
 }
@@ -72,3 +74,5 @@ function play_pause() {
 function seek(timestamp) {
     // probably have the function that calls this pass in the timestamp
 }
+
+document.getElementById("playPauseButton").addEventListener("click", play_pause);
