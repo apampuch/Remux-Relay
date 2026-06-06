@@ -134,6 +134,26 @@ static gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpoi
     } else if (strcmp(cmd, "pause") == 0) {
         gst_element_set_state(pipeline, GST_STATE_PAUSED);
         snprintf(response_buf, sizeof(response_buf), "Paused.");
+    } else if (strcmp(cmd, "toggle") == 0) {
+        GstState current_state, pending_state, effective_state;
+
+        printf("Toggling");
+
+        gst_element_get_state(pipeline, &current_state, &pending_state, GST_SECOND);
+
+        if (pending_state != GST_STATE_VOID_PENDING) 
+            effective_state = pending_state;
+        else
+            effective_state = current_state;
+
+        if (effective_state == GST_STATE_PLAYING) {
+            gst_element_set_state(pipeline, GST_STATE_PAUSED);
+            snprintf(response_buf, sizeof(response_buf), "Paused.");
+        } else {
+            gst_element_set_state(pipeline, GST_STATE_PLAYING);
+            snprintf(response_buf, sizeof(response_buf), "Playing.");
+        }
+
     } else if (strcmp(cmd, "seek") == 0) {
         // get the seek arg
         json_t *sub_cmd_obj = json_object_get(root, "seek");
@@ -167,6 +187,11 @@ static gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpoi
     } else if (strcmp(cmd, "set_subs") == 0) {
         // get the file arg
         ;
+    } else if (strcmp(cmd, "get_play_state") == 0) {
+        GstState current_state;
+        GstState pending_state;
+
+        gst_element_get_state(pipeline, &current_state, &pending_state, GST_SECOND);
     } else {
         snprintf(response_buf, sizeof(response_buf), "error: command %s is not valid\n", cmd);
     }
