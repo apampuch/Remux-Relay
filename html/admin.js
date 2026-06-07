@@ -7,7 +7,7 @@ const ws = new WebSocket(`${protocol}//${host}/ws`);
 const pendingRequests = new Map();
 
 ws.addEventListener("open", () => {
-    log("Connected to websocket.");
+    console.log("Connected to websocket.");
     // TODO get metadata or something
 });
 
