@@ -40,33 +40,22 @@ function get_playing_state() {
 
     const cmd = {
         "command": "get_play_state",
-        "id": crypto.randomUUID()
+        "id": id
     };
 
     return new Promise((resolve) => {
         pendingRequests.set(id, resolve);
         ws.send(JSON.stringify(cmd));
-        // ws.send(JSON.stringify(
-        //     id,
-        //     type,
-        //     cmd
-        // ))
     });
 }
 
 function play_pause() {
-    const cmd = {"command": "toggle"};
+    const id = crypto.randomUUID();
 
-    console.log("Toggling");
-
-    // const playing_state = await get_playing_state();
-
-    // if (true) { // if playing
-    //     cmd.command = "pause";    
-    // }
-    // else {
-    //     cmd.command = "play";
-    // }
+    const cmd = {
+        "command": "toggle",
+        "id": id
+    };
 
     ws.send(JSON.stringify(cmd));
 }
