@@ -137,7 +137,7 @@ static gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpoi
     } else if (strcmp(cmd, "toggle") == 0) {
         GstState current_state, pending_state, effective_state;
 
-        printf("Toggling");
+        printf("Toggling\n");
 
         gst_element_get_state(pipeline, &current_state, &pending_state, GST_SECOND);
 
