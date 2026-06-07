@@ -6,7 +6,7 @@ const wss = new WebSocket.Server({ port: 3000 });
 wss.on('connection', (ws) => {
     console.log("Connection established.");
 
-    const relaySocket = net.createConnection('');
+    const relaySocket = net.createConnection('/sockets/relay.sock');
 
     ws.on('message', (data) => {
         console.log("Received message.");
