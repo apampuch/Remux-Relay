@@ -420,13 +420,13 @@ int main(int argc, char *argv[]) {
     // configure identity filters
     g_object_set(
         components.video_identity,
-        // "sync", TRUE,
+        "sync", FALSE,
         "single-segment", TRUE,
         NULL
     );
     g_object_set(
         components.audio_identity,
-        // "sync", TRUE,
+        "sync", FALSE,
         "single-segment", TRUE,
         NULL
     );
