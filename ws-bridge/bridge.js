@@ -54,10 +54,6 @@ wss.on('connection', (ws) => {
         /* just pass the JSON string to the unix socket */
         reply.message = await sendCommand(dataJSONString); 
 
-        /* wait for response from unix socket */
-
-        console.log("Await finished");
-
         /* send response */
         const replyStr = JSON.stringify(reply);
         ws.send(replyStr);

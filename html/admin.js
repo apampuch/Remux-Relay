@@ -29,12 +29,6 @@ ws.addEventListener("error", () => {
     console.log("ERROR");
 });
 
-ws.onmessage
-
-function send_command(command_obj) {
-
-}
-
 function get_playing_state() {
     const id = crypto.randomUUID();
 
@@ -61,7 +55,29 @@ function play_pause() {
 }
 
 function seek(timestamp) {
-    // probably have the function that calls this pass in the timestamp
+    const id = crypto.randomUUID();
+
+    const cmd = {
+        "command": "seek",
+        "id": id
+    };
+
+    var first_char = timestamp.charAt(0);
+    if (first_char == '+') {
+        timestamp.substr(0);
+        cmd.seek_type = "forward";
+    } else if (first_char == '-') {
+        timestamp.substr(0);
+        cmd.seek_type = "backward";
+    } else {
+        cmd.seek_type = "absolute";
+    }
+
+    cmd.seek_time = parseInt(timestamp);
+
+    ws.send(JSON.stringify(cmd));
 }
 
 document.getElementById("playPauseButton").addEventListener("click", play_pause);
+document.getElementById("skipBackButton").addEventListener("click", () => seek("-5000"));
+document.getElementById("skipForwardButton").addEventListener("click", () => seek("+5000"));
