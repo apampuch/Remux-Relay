@@ -137,8 +137,6 @@ static gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpoi
     } else if (strcmp(cmd, "toggle") == 0) {
         GstState current_state, pending_state, effective_state;
 
-        printf("Toggling\n");
-
         gst_element_get_state(pipeline, &current_state, &pending_state, GST_SECOND);
 
         if (pending_state != GST_STATE_VOID_PENDING) 
@@ -155,23 +153,65 @@ static gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpoi
         }
 
     } else if (strcmp(cmd, "seek") == 0) {
-        // get the seek arg
-        json_t *sub_cmd_obj = json_object_get(root, "seek");
+        /*
+          Seek must have two more options:
+          seek_time: integer in milliseconds
+          seek_type: str that equals forward, backward, or absolute
 
-        if (!json_is_integer(sub_cmd_obj)) {
-            fprintf(stderr, "error: time is not an integer.\n");
+          seek_type changes how seek_time works
+          forward or backward moves the current position forward or backward that much
+          absolute sets the current position to that time
+        */
+
+        // get the seek arg
+        json_t *seek_time_json = json_object_get(root, "seek_time");
+        json_t *seek_type_json = json_object_get(root, "seek_type");
+
+        if (!json_is_integer(seek_time_json)) {
+            fprintf(stderr, "error: seek time is not an integer.\n");
             json_decref(root);
             return TRUE;
         }
 
-        // seconds for now, pass in nanoseconds later
-        gint64 seek_time = json_integer_value(sub_cmd_obj) * GST_SECOND;
+        if (!json_is_string(seek_type_json)) {
+            fprintf(stderr, "error: seek type is not an string.\n");
+            json_decref(root);
+            return TRUE;
+        }
+
+        const char *seek_type = json_string_value(seek_type_json);
+        gint64 seek_time = json_integer_value(seek_time_json) * GST_MSECOND;
+
+        gint64 current_position;
+        gint64 new_position;
+        gst_element_query_position(pipeline, GST_FORMAT_TIME, &current_position);
+
+        if (strcmp(seek_type, "forward") == 0) {
+            new_position = current_position + seek_time;
+        } else if (strcmp(seek_type, "backward") == 0) {
+            new_position = current_position + seek_time;
+        } else if (strcmp(seek_type, "absolute") == 0) {
+            new_position = seek_time;
+        } else {
+            g_printerr("Invalid seek type.");
+        }
+
+        gint64 duration;
+        gst_element_query_duration(pipeline, GST_FORMAT_TIME, &duration);
+
+        // cap to duration
+        if (new_position > duration)
+            new_position = duration;
+
+        // cap to 0
+        if (new_position < 0)
+            new_position = 0;
 
         gst_element_seek_simple(
             pipeline,
             GST_FORMAT_TIME,
             GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT | GST_SEEK_FLAG_SNAP_BEFORE,
-            seek_time
+            new_position
         );
 
         snprintf(response_buf, sizeof(response_buf), "Seek to %" GST_TIME_FORMAT " successful.", GST_TIME_ARGS(seek_time));
