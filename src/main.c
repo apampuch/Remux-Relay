@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include "stream_components.h"
 
 #define SOCKET_PATH "/sockets/relay.sock"
 
