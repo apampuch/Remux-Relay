@@ -5,7 +5,6 @@
 #include "gst/gstbus.h"
 #include "gst/gstclock.h"
 #include "gst/gstelement.h"
-#include "gst/gstelementfactory.h"
 #include "gst/gstformat.h"
 #include "gst/gstmessage.h"
 #include "gst/gstpad.h"
@@ -14,7 +13,6 @@
 #include "gst/gstutils.h"
 #include <jansson.h>
 #include <gst/gst.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,18 +25,6 @@
 
 #define SOCKET_PATH "/sockets/relay.sock"
 
-typedef struct _StreamComponents {
-    GstElement *pipeline, *source, *demux;
-    GstElement *video_queue, *video_identity, *video_parse;
-    GstElement *audio_queue, *audio_identity, *audio_parse;
-    GstElement *whip_sink;
-} StreamComponents;
-
-static volatile sig_atomic_t keep_running = 1;
-
-static void stop_running(int dummy) {
-    keep_running = 0;
-}
 
 static gboolean bus_callback(GstBus *bus, GstMessage *msg, gpointer data) {
     switch (GST_MESSAGE_TYPE(msg)) {
@@ -243,47 +229,104 @@ static gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpoi
     return TRUE;
 }
 
-static void pad_added_handler(GstElement * src, GstPad * new_pad, StreamComponents * data) {
-    StreamComponents *components = (StreamComponents *)data;
+static GstClockTime last_pts = GST_CLOCK_TIME_NONE;
+static GstPadProbeReturn pts_probe(
+    GstPad *pad,
+    GstPadProbeInfo *info,
+    gpointer user_data)
+{
+    if (!(GST_PAD_PROBE_INFO_TYPE(info) & GST_PAD_PROBE_TYPE_BUFFER))
+        return GST_PAD_PROBE_OK;
 
-    GstCaps *caps = gst_pad_query_caps(new_pad, NULL);
+    GstBuffer *buf = GST_PAD_PROBE_INFO_BUFFER(info);
+    GstClockTime pts = GST_BUFFER_PTS(buf);
 
-    GstStructure *str = gst_caps_get_structure(caps, 0);
-
-    const gchar *new_pad_type = gst_structure_get_name(str);
-
-    GstPad *sink_pad = NULL;
-
-    // TODO maybe also check the suffix to make sure our codecs are good as well
-    if (g_str_has_prefix(new_pad_type, "video/")) {
-        sink_pad = gst_element_get_static_pad(components->video_queue, "sink");
-    } else if (g_str_has_prefix(new_pad_type, "audio/")) {
-        sink_pad = gst_element_get_static_pad(components->audio_queue, "sink");
-    } else {
-        g_print("Invalid pad type %s", new_pad_type);
-        goto pad_handler_exit;
+    if (last_pts != GST_CLOCK_TIME_NONE &&
+        pts < last_pts)
+    {
+        g_print(
+            "PTS WENT BACKWARDS! old=%" GST_TIME_FORMAT
+            " new=%" GST_TIME_FORMAT "\n",
+            GST_TIME_ARGS(last_pts),
+            GST_TIME_ARGS(pts));
     }
 
-    // if already linked, we're done
-    if (gst_pad_is_linked (sink_pad)) {
-        g_print ("We are already linked. Ignoring.\n");
-        goto pad_handler_exit;
-    }
+    last_pts = pts;
 
-    GstPadLinkReturn ret = gst_pad_link(new_pad, sink_pad);
-    if (GST_PAD_LINK_FAILED(ret)) {
-        g_print ("Type is '%s' but link failed.\n", new_pad_type);
-    }
-
-pad_handler_exit:
-    /* Unreference the new pad's caps, if we got them */
-    if (caps != NULL)
-        gst_caps_unref (caps);
-
-    /* Unreference the sink pad */
-    if (sink_pad)
-        gst_object_unref (sink_pad);
+    return GST_PAD_PROBE_OK;
 }
+
+static void on_consumer_pipeline_created(
+    GstElement *sink,
+    gchar *consumer_id,
+    GstPipeline *pipeline,
+    gpointer user_data)
+{
+    g_print("Consumer pipeline created: %s\n", consumer_id);
+
+    GstIterator *it =
+        gst_bin_iterate_elements(GST_BIN(pipeline));
+
+    GValue item = G_VALUE_INIT;
+
+    while (gst_iterator_next(it, &item) == GST_ITERATOR_OK)
+    {
+        GstElement *e = GST_ELEMENT(g_value_get_object(&item));
+
+        g_print(
+            "  %s (%s)\n",
+            GST_ELEMENT_NAME(e),
+            G_OBJECT_TYPE_NAME(e));
+
+        g_value_reset(&item);
+    }
+
+    gst_iterator_free(it);
+}
+
+static GstPadProbeReturn segment_probe(
+    GstPad *pad,
+    GstPadProbeInfo *info,
+    gpointer user_data)
+{
+    if (GST_PAD_PROBE_INFO_TYPE(info) & GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM)
+    {
+        GstEvent *event = GST_PAD_PROBE_INFO_EVENT(info);
+
+        switch (GST_EVENT_TYPE(event))
+        {
+        case GST_EVENT_SEGMENT:
+        {
+            const GstSegment *seg;
+            gst_event_parse_segment(event, &seg);
+
+            g_print(
+                "SEGMENT: start=%" GST_TIME_FORMAT
+                " time=%" GST_TIME_FORMAT   
+                " base=%" GST_TIME_FORMAT
+                "\n",
+                GST_TIME_ARGS(seg->start),
+                GST_TIME_ARGS(seg->time),
+                GST_TIME_ARGS(seg->base));
+            break;
+        }
+
+        case GST_EVENT_FLUSH_START:
+            g_print("FLUSH_START\n");
+            break;
+
+        case GST_EVENT_FLUSH_STOP:
+            g_print("FLUSH_STOP\n");
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    return GST_PAD_PROBE_OK;
+}
+
 
 int main(int argc, char *argv[]) {
     /* Set up socket stuff */
@@ -322,164 +365,25 @@ int main(int argc, char *argv[]) {
     // initialize gstreamer
     gst_init(&argc, &argv);
 
-    // build the source, sink, filters
-    components.source           = gst_element_factory_make("filesrc", "source");
-    components.demux            = gst_element_factory_make("qtdemux", "demux");
-    components.video_queue      = gst_element_factory_make("queue2", "video_queue");
-    components.video_identity   = gst_element_factory_make("identity", "video_identity");
-    components.video_parse      = gst_element_factory_make("h264parse", "video_parse");
-    components.audio_queue      = gst_element_factory_make("queue2", "audio_queue");
-    components.audio_identity   = gst_element_factory_make("identity", "audio_identity");
-    components.audio_parse      = gst_element_factory_make("opusparse", "audio_parse");
-    components.whip_sink        = gst_element_factory_make("whipclientsink", "sink");
+    setup_stream_components(&components);
 
-    components.pipeline = gst_pipeline_new("main-pipeline");
-
-    if (!components.pipeline ||
-        !components.source ||
-        !components.demux ||
-        !components.video_queue ||
-        !components.video_parse ||
-        !components.audio_queue ||
-        !components.audio_parse ||
-        !components.whip_sink
-    ) {
-        g_printerr ("Not all elements could be created.\n");
-        return -1;
-    }
-
-    // build the pipeline
-    gst_bin_add_many(
-        GST_BIN(components.pipeline), 
-        components.source,
-        components.demux,
-        components.video_queue,
-        components.video_identity,
-        components.video_parse,
-        components.audio_queue,
-        components.audio_identity,
-        components.audio_parse,
+    g_object_set(
         components.whip_sink,
-        NULL
-    );
-
-    // link relevant elements, not pads 
-    gboolean try_link;
-
-    try_link = gst_element_link(components.source,
-                    components.demux);
-
-    if (!try_link) {
-        g_printerr ("Source and demux could not be linked.\n");
-        gst_object_unref (components.pipeline);
-        return -1;
-    }
-
-    try_link = gst_element_link_many(
-        components.video_queue,
-        components.video_identity,
-        components.video_parse,
-        components.whip_sink,
+        "message-forward",
+        TRUE,
         NULL);
 
-    if (!try_link) {
-        g_printerr ("Video components could not be linked.\n");
-        gst_object_unref (components.pipeline);
-        return -1;
-    }
+    GstPad *segment_pad =
+        gst_element_get_static_pad(
+            components.video_parse,
+            "sink");
 
-    try_link = gst_element_link_many(
-        components.audio_queue,
-        components.audio_identity,
-        components.audio_parse,
-        components.whip_sink,
+    gst_pad_add_probe(
+        segment_pad,
+        GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+        segment_probe,
+        NULL,
         NULL);
-
-    if (!try_link) {
-        g_printerr ("Audio components could not be linked.\n");
-        gst_object_unref (components.pipeline);
-        return -1;
-    }
-        
-    // configure queues for livestreaming
-    g_object_set(
-        components.video_queue,
-        "max-size-buffers", 0,
-        "max-size-bytes", 0,
-        "max-size-time", 500 * GST_MSECOND,
-        "leaky", 2,
-        NULL
-    );
-    g_object_set(
-        components.audio_queue,
-        "max-size-buffers", 0,
-        "max-size-bytes", 0,
-        "max-size-time", 50 * GST_MSECOND,
-        NULL
-    );
-
-    // configure identity filters
-    g_object_set(
-        components.video_identity,
-        "sync", FALSE,
-        "single-segment", TRUE,
-        NULL
-    );
-    g_object_set(
-        components.audio_identity,
-        "sync", FALSE,
-        "single-segment", TRUE,
-        NULL
-    );
-
-    // inject SPS/PPS
-    g_object_set(
-        components.video_parse,
-        "config-interval", -1,
-        NULL
-    );
-
-    // add async handling to whipclientsink
-    gst_util_set_object_arg(
-        G_OBJECT(components.whip_sink),
-        "async-handling",
-        "true"
-    );
-
-    // set the file 
-    g_object_set(components.source, "location", "/videos/test.mp4", NULL);
-    
-    // set pipeline latency
-    g_object_set(
-        components.pipeline,
-        "latency",
-        50 * GST_MSECOND,
-        NULL
-    );
-
-    // set the whip endpoint
-    GObject *signaller = NULL;
-    g_object_get(
-        components.whip_sink,
-        "signaller",
-        &signaller,
-        NULL
-    );
-
-    g_object_set(
-        signaller,
-        "whip-endpoint",
-        "http://mediamtx:8889/stream/whip",
-        NULL
-    );
-
-    g_object_unref(signaller);
-
-    // set congestion control
-    g_object_set(components.whip_sink, "congestion-control", 2, NULL);
-
-    /* Connect to the pad-added signal */
-    g_signal_connect(components.demux, "pad-added", G_CALLBACK (pad_added_handler), &components);
 
     // start playing
     gst_element_set_state(components.pipeline, GST_STATE_PLAYING);

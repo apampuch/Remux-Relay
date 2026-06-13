@@ -7,4 +7,4 @@ client: src/testclient.c
 	gcc src/testclient.c -o ./bin/testclient $(CFLAGS) $(LIBS)
 
 server: src/main.c
-	gcc src/main.c -o ./bin/remuxrelay $(CFLAGS) $(LIBS)
+	gcc src/main.c src/stream_components.c -o ./bin/remuxrelay $(CFLAGS) $(LIBS)
