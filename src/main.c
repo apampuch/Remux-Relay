@@ -174,7 +174,7 @@ static gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpoi
         if (strcmp(seek_type, "forward") == 0) {
             new_position = current_position + seek_time;
         } else if (strcmp(seek_type, "backward") == 0) {
-            new_position = current_position + seek_time;
+            new_position = current_position - seek_time;
         } else if (strcmp(seek_type, "absolute") == 0) {
             new_position = seek_time;
         } else {

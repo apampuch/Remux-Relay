@@ -64,10 +64,10 @@ function seek(timestamp) {
 
     var first_char = timestamp.charAt(0);
     if (first_char == '+') {
-        timestamp.substr(0);
+        timestamp = timestamp.substr(1);
         cmd.seek_type = "forward";
     } else if (first_char == '-') {
-        timestamp.substr(0);
+        timestamp = timestamp.substr(1);
         cmd.seek_type = "backward";
     } else {
         cmd.seek_type = "absolute";
