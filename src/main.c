@@ -23,6 +23,27 @@
 
 #define SOCKET_PATH "/sockets/relay.sock"
 
+static gboolean
+debug_timer(gpointer user_data)
+{
+    GstElement *pipeline = GST_ELEMENT(user_data);
+
+    gint64 pos = GST_CLOCK_TIME_NONE;
+
+    if (gst_element_query_position(
+            pipeline,
+            GST_FORMAT_TIME,
+            &pos))
+    {
+        g_print("Position: %" GST_TIME_FORMAT "\n",
+                GST_TIME_ARGS(pos));
+    } else {
+        g_print("Could not poll position.\n");
+    }
+
+
+    return G_SOURCE_CONTINUE;  // keep running
+}
 
 static gboolean bus_callback(GstBus *bus, GstMessage *msg, gpointer data) {
     switch (GST_MESSAGE_TYPE(msg)) {
@@ -278,6 +299,8 @@ int main(int argc, char *argv[]) {
     GIOChannel *channel = g_io_channel_unix_new(server_socket);
     g_io_add_watch(channel, G_IO_IN, socket_callback, components.pipeline);
 
+    // g_timeout_add(100, debug_timer, components.pipeline);
+
     GMainLoop *loop = g_main_loop_new(NULL, FALSE);
     g_main_loop_run(loop);
 
@@ -288,5 +311,7 @@ int main(int argc, char *argv[]) {
 
     close(server_socket);
     unlink(server_addr.sun_path);
+
+    g_print("Exiting.\n");
     exit(0);
 }
