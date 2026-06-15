@@ -30,7 +30,7 @@ ws.addEventListener("error", () => {
 });
 
 function get_playing_state() {
-    const id = crypto.randomUUID();
+    const id = Date.now() + Math.floor(Math.random() * 1_000_000_000);
 
     const cmd = {
         "command": "get_play_state",
@@ -44,7 +44,7 @@ function get_playing_state() {
 }
 
 function play_pause() {
-    const id = crypto.randomUUID();
+    const id = Date.now() + Math.floor(Math.random() * 1_000_000_000);
 
     const cmd = {
         "command": "toggle",
@@ -55,7 +55,7 @@ function play_pause() {
 }
 
 function seek(timestamp) {
-    const id = crypto.randomUUID();
+    const id = Date.now() + Math.floor(Math.random() * 1_000_000_000);
 
     const cmd = {
         "command": "seek",
