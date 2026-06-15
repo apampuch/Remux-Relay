@@ -72,8 +72,6 @@ networks:
 ```bash
 ffmpeg \
   -i test.mkv \
-  -ss 120 \
-  -t 60 \
   -map 0:v:0 \
   -map 0:a:0 \
   -c:v libx264 \
