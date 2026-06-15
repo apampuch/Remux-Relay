@@ -14,7 +14,7 @@ body {
 }
 
 #controlsContainer {
-    width: 70%;      /* match video width */
+    width: 75%;      /* match video width */
     margin: 0 auto; /* center it */
     display: flex;
     flex-direction: column;
@@ -22,7 +22,49 @@ body {
     padding: 5px;
 }
 
-#controlsContainer select {
+#seekBar {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    flex: 1;
+    min-width: 0; /* important in flex layouts */
+}
+
+#seekBar::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 4px;
+    background: #888;
+    background-image: linear-gradient(to right, #adc8fa, #fff, #ff8000); 
+}
+
+#seekBar::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border: ridge grey;
+    border-radius: 10%;
+    background: gray;
+    cursor: pointer;
+    margin-top: -4px;
+}
+
+#seekBar::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: ridge black;
+    border-radius: 10%;
+    background: gray;
+    cursor: pointer;
+}
+
+#seekBar::-moz-range-track {
+    height: 8px;
+    border-radius: 4px;
+    background: #888;
+    background-image: linear-gradient(to right, #adc8fa, #fff, #ff8000); 
+}
+
+#fileSelector {
     flex: 1;
     min-width: 0; /* important in flex layouts */
 }
