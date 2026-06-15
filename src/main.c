@@ -169,6 +169,15 @@ static gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpoi
           absolute sets the current position to that time
         */
 
+        // WebRTC basically won't let us seek while paused, so we set the state to playing after a seek
+        GstState current_state, pending_state, effective_state;
+
+        gst_element_get_state(pipeline, &current_state, &pending_state, GST_SECOND);
+
+        if (current_state != GST_STATE_PLAYING) {
+            gst_element_set_state(pipeline, GST_STATE_PLAYING);
+        }
+
         // get the seek arg
         json_t *seek_time_json = json_object_get(root, "seek_time");
         json_t *seek_type_json = json_object_get(root, "seek_type");
@@ -216,7 +225,7 @@ static gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpoi
         gst_element_seek_simple(
             pipeline,
             GST_FORMAT_TIME,
-            GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT | GST_SEEK_FLAG_SNAP_BEFORE,
+            GST_SEEK_FLAG_KEY_UNIT | GST_SEEK_FLAG_SNAP_BEFORE,
             new_position
         );
 
@@ -286,7 +295,7 @@ int main(int argc, char *argv[]) {
     gst_init(&argc, &argv);
 
     setup_stream_components(&components);
-    add_probes(&components);
+    // add_probes(&components);
 
     // start playing
     gst_element_set_state(components.pipeline, GST_STATE_PLAYING);
