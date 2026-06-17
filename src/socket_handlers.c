@@ -1,3 +1,5 @@
+#include "glib.h"
+#include "glibconfig.h"
 #include "gst/gstclock.h"
 #include "gst/gstelement.h"
 #include "gst/gstformat.h"
@@ -16,7 +18,8 @@
 
 #define SOCKET_PATH "/sockets/relay.sock"
 
-gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpointer data);
+static gboolean accept_callback(GIOChannel *source, GIOCondition condition, gpointer data);
+static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpointer data);
 
 struct sockaddr_un server_addr;
 int server_socket;
@@ -48,7 +51,7 @@ void setup_socket(StreamComponents components) {
 
     // setup io channel and callback
     GIOChannel *channel = g_io_channel_unix_new(server_socket);
-    g_io_add_watch(channel, G_IO_IN, socket_callback, components.pipeline);
+    g_io_add_watch(channel, G_IO_IN, accept_callback, components.pipeline);
 
     listen(server_socket, 5);
 }
@@ -58,36 +61,72 @@ void close_socket() {
     unlink(server_addr.sun_path);
 }
 
-gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpointer data) {
-    GstElement *pipeline = data;
-    char buf[1024];
-    json_t *root;
-    json_error_t error;
-    
+static gboolean accept_callback(GIOChannel *source, GIOCondition condition, gpointer data) {
     // setup client socket
-    int fd = g_io_channel_unix_get_fd(source);
+
+    // keeping all this in case it's possible to just connect directly to this without the bridge
     int client_socket;
     struct sockaddr_un client_addr;
     memset(&client_addr, 0, sizeof(client_addr));
     socklen_t clen = sizeof(client_addr);
+
+    int fd = g_io_channel_unix_get_fd(source);
     client_socket = accept(fd, (struct sockaddr *) &client_addr, &clen);
 
-    // load json
-    ssize_t read_result = read(client_socket, buf, sizeof(buf));
+    GIOChannel *client_channel = g_io_channel_unix_new(client_socket);
 
-    if (read_result < 0) {
-        perror("read");
-        close(client_socket);
+    g_io_add_watch(
+        client_channel,
+        G_IO_IN | G_IO_HUP | G_IO_ERR,
+        client_callback,
+        data
+    );
+
+    g_print("Accepted client connection.\n");
+
+    return TRUE;
+}
+
+static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpointer data) {
+    // return FALSE removes it from the loop
+    if (condition & G_IO_HUP) {
+        fprintf(stderr, "Client disconnected.\n");
+        return FALSE;
+    } else if (condition & G_IO_ERR) {
+        fprintf(stderr, "Client error.");
+        return FALSE;
+    }
+
+    // anything else is G_IO_IN, so read from the socket
+    GError *socket_error = NULL;
+    gchar *line = NULL;
+    gsize line_len;
+
+    GIOStatus status = g_io_channel_read_line(source,
+        &line,
+        &line_len,
+        NULL,
+        &socket_error);
+
+    if (status == G_IO_STATUS_ERROR) {
+        fprintf(stderr, "Message error.\n");
         return TRUE;
     }
-    buf[read_result] = '\0';
 
-    root = json_loads(buf, 0, &error);
+    // we might not have a full line with a newline at the end
+    // maybe check for that
+
+    GstElement *pipeline = data;
+    json_t *root;
+    json_error_t json_error;
+
+    // load json
+    root = json_loads(line, 0, &json_error);
 
     // check json for errors
     if (!root)
     {
-        g_print("Error with json:\n%s", buf);
+        fprintf(stderr, "Error with json:\n%s", line);
         return TRUE;
     }
 
@@ -97,6 +136,9 @@ gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpointer da
         return TRUE;
     }
     
+    // debug print to make sure we got it
+    g_print("%s\n", json_dumps(root, JSON_COMPACT));
+
     // parse the actual command
     json_t *cmd_obj = json_object_get(root, "command");
 
@@ -205,7 +247,8 @@ gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpointer da
             new_position
         );
 
-        snprintf(response_buf, sizeof(response_buf), "Seek to %" GST_TIME_FORMAT " successful.", GST_TIME_ARGS(seek_time));
+        g_print("Seek to %" GST_TIME_FORMAT " successful.\n", GST_TIME_ARGS(seek_time));
+        snprintf(response_buf, sizeof(response_buf), "Seek to %" GST_TIME_FORMAT " successful.\n", GST_TIME_ARGS(seek_time));
     } else if (strcmp(cmd, "set_file") == 0) {
         // get the file arg
         json_t *sub_cmd_obj = json_object_get(root, "filename");
@@ -227,8 +270,29 @@ gboolean socket_callback(GIOChannel *source, GIOCondition condition, gpointer da
         snprintf(response_buf, sizeof(response_buf), "error: command %s is not valid\n", cmd);
     }
 
-    write(client_socket, response_buf, strlen(response_buf));
-    close(client_socket);
+    // append newline
+    strcat(response_buf, "\n");
+
+    GError *write_error = NULL;
+    gsize bytes_written;
+
+    status = g_io_channel_write_chars(
+        source,
+        response_buf,
+        -1,
+        &bytes_written,
+        &write_error
+    );
+
+    // how tf do I handle write errors, if at all
+    if (write_error) {
+        fprintf(stderr,"Error writing message to socket.");
+    }
+
+    g_io_channel_flush(source, &write_error );
+
+
+    // write(client_socket, response_buf, strlen(response_buf));
     json_decref(root);
     return TRUE;
 }

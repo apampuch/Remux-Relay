@@ -29,6 +29,12 @@ ws.addEventListener("error", () => {
     console.log("ERROR");
 });
 
+function send_to_server(cmd) {
+    // for some reason the newline character doesn't make it to the bridge
+    // oh well
+    ws.send(JSON.stringify(cmd) + '\n');
+}
+
 function get_playing_state() {
     const id = Date.now() + Math.floor(Math.random() * 1_000_000_000);
 
@@ -39,7 +45,7 @@ function get_playing_state() {
 
     return new Promise((resolve) => {
         pendingRequests.set(id, resolve);
-        ws.send(JSON.stringify(cmd));
+        send_to_server(cmd);
     });
 }
 
@@ -51,7 +57,7 @@ function play_pause() {
         "id": id
     };
 
-    ws.send(JSON.stringify(cmd));
+    send_to_server(cmd);
 }
 
 function seek(timestamp) {
@@ -75,7 +81,7 @@ function seek(timestamp) {
 
     cmd.seek_time = parseInt(timestamp);
 
-    ws.send(JSON.stringify(cmd));
+    send_to_server(cmd);
 }
 
 document.getElementById("playPauseButton").addEventListener("click", play_pause);

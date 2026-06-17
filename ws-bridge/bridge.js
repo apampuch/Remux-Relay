@@ -6,19 +6,20 @@ const wss = new WebSocket.Server({ port: 3000 });
 wss.on('connection', (ws) => {
     console.log("Connection established.");
 
+    const relaySocket = net.createConnection('/sockets/relay.sock');
+
     function sendCommand(command) {
-        // TODO move this just outside the function for when we make a persistent socket version
-        const relaySocket = net.createConnection('/sockets/relay.sock');
+        console.log("Sending command.");
 
         return new Promise((resolve, reject) => {            
             relaySocket.once("data", (data) => {
                 resolve(data.toString());
-                relaySocket.end();  // graceful close
+                // relaySocket.end();  // graceful close
             });
 
             relaySocket.once("error", (err) => {
                 reject(err);
-                relaySocket.destroy();  // force cleanup
+                // relaySocket.destroy();  // force cleanup
             });
 
             relaySocket.write(command);
@@ -26,6 +27,9 @@ wss.on('connection', (ws) => {
     }
 
     ws.on('message', async (dataJSONString) => {
+        if (dataJSONString.at(-1) !== '\n')
+            dataJSONString += '\n';
+        
         const data = JSON.parse(dataJSONString);
         const reply = {};
         const errorObj = {};
