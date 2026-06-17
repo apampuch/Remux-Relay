@@ -30,9 +30,7 @@ ws.addEventListener("error", () => {
 });
 
 function send_to_server(cmd) {
-    // for some reason the newline character doesn't make it to the bridge
-    // oh well
-    ws.send(JSON.stringify(cmd) + '\n');
+    ws.send(JSON.stringify(cmd));
 }
 
 function get_playing_state() {
