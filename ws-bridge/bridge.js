@@ -8,28 +8,10 @@ wss.on('connection', (ws) => {
 
     const relaySocket = net.createConnection('/sockets/relay.sock');
 
-    function sendCommand(command) {
-        console.log("Sending command.");
-
-        return new Promise((resolve, reject) => {            
-            relaySocket.once("data", (data) => {
-                resolve(data.toString());
-                // relaySocket.end();  // graceful close
-            });
-
-            relaySocket.once("error", (err) => {
-                reject(err);
-                // relaySocket.destroy();  // force cleanup
-            });
-
-            relaySocket.write(command);
-        });
-    }
-
     ws.on('message', async (dataJSONString) => {
         if (dataJSONString.at(-1) !== '\n')
             dataJSONString += '\n';
-        
+
         const data = JSON.parse(dataJSONString);
         const reply = {};
         const errorObj = {};
@@ -53,18 +35,22 @@ wss.on('connection', (ws) => {
             return;
         }
 
-        // TODO extract other data
+        // console.log("Sending to server.");
 
-        /* just pass the JSON string to the unix socket */
-        reply.message = await sendCommand(dataJSONString); 
+        // just send it
+        relaySocket.write(dataJSONString);
+    });
 
-        /* send response */
-        const replyStr = JSON.stringify(reply);
-        ws.send(replyStr);
-    })
+    // just forward any data from the unix socket to the websocket
+    relaySocket.on('data', async (dataBytesBuffer) => {
+        // this is a buffer of bytes
+        // for now assume anything we get is a json and send it away
+        // console.log("Unix event trigger:" + dataBytesBuffer.toString());
+        ws.send(dataBytesBuffer.toString());
+    });
 
     ws.on('close', (data) => {
-        console.log('Closing.');
-    })
+        console.log('Closing connection.');
+    });
 
 });
