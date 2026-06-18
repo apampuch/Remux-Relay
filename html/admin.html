@@ -1,19 +1,32 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8">
     <link rel="stylesheet" href="player.css">
+    <script src="stream.js" defer></script>
+    <script src="admin.js" defer></script>
   </head>
   <body>
     <div id="videoContainer">
       <video id="videoPlayer" autoplay playsinline poster="poster.webp"></video>
     </div>
-    <script src="stream.js"></script>
+
     <div id="controlsContainer">
+      <div class="controlsRow">
+        <input
+          type="range"
+          id="seekBar"
+          min="0"
+          max="100"
+          value="0">
+
+        <span id="currentPosition">00:00:00</span> <span> / </span> <span id="totalDuration">99:99:99</span>
+      </div>
         <div class="controlsRow">
-            <button class="controlButton">⟲</button>
-            <button class="controlButton">⏯︎</button>
-            <button class="controlButton">⟳</button>
-            <p>File:</p> <select></select> <button class="playFileButton">PLAY</button>
+            <button class="controlButton" id="skipBackButton">⟲</button>
+            <button class="controlButton" id="playPauseButton">⏯︎</button>
+            <button class="controlButton" id="skipForwardButton">⟳</button>
+            <p>File:</p> <select id="fileSelector"></select> <button class="playFileButton">PLAY</button>
         </div>
         <div class="controlsRow">
             <p>File Password:</p> <input type="text" id="filePassword">

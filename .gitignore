@@ -11,3 +11,6 @@ videos/
 # compiled files
 libs/
 bin/
+
+build_libraries.sh
+docker_build_push.sh

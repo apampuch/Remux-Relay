@@ -6,6 +6,11 @@ The following gst-plugins-rs built:
 - `webrtc`
 - `webrtchttp`
 
+Open these ports:
+  - 8080/tcp (web server)
+  - 8189/udp (mediamtx)
+  - 8889/tcp (mediamtx)
+
 (last tested commit is `153ccd0624e820958eff474f1da67b051fc42e37`)
 
 (last tested gstreamer commit is `8f181e21d540065930a70b4c355b4df4dc81c575`)
@@ -17,7 +22,8 @@ The files `libgstrsrtp.so` `libgstrswebrtc.so` `libgstwebrtchttp.so` should all 
 name: remux-relay
 services:
   mediamtx:
-    image: bluenviron/mediamtx:latest
+    container_name: rr-mediamtx
+    image: bluenviron/mediamtx:1.18.2  # 1.19 has issues with ICE for some reason
     ports:
       - "8554:8554"
       - "1935:1935"
@@ -30,11 +36,21 @@ services:
         - MTX_WEBRTCADDITIONALHOSTS=127.0.0.1  # SET THIS TO YOUR SERVER'S EXTERNAL IP
 
   web:
+    container_name: rr-web
     image: apampuch/remux-relay-web:latest
     ports:
       - "8080:80"  # or whatever port you want to expose
 
+  backend:
+    container_name: rr-bridge
+    image: apampuch/remux-relay-bridge:latest
+    expose:
+      - "3000"
+    volumes:
+      - socket-volume:/sockets
+
   remux-relay:
+    container_name: rr-player
     image: apampuch/remux-relay:latest
     depends_on:
       - mediamtx
@@ -42,14 +58,20 @@ services:
     tty: true          # -t
     volumes:
       - ./videos:/videos:ro
+      - socket-volume:/sockets
+
+volumes:
+  socket-volume:
+
+networks:
+  default:
+    name: rr-network
 ```
 
 # Suggested Encode Options
 ```bash
 ffmpeg \
   -i test.mkv \
-  -ss 120 \
-  -t 60 \
   -map 0:v:0 \
   -map 0:a:0 \
   -c:v libx264 \

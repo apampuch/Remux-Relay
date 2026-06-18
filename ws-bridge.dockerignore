@@ -7,10 +7,11 @@ openvidu-livekit-tutorials/
 openvidu-local-deployment/
 livekit-cli/
 videos/
-src/
 makefile
 .gitignore
 
-# web specific things
+# server specific things
+libs/
+src/
+bin/
 html/
-ws-bridge/
