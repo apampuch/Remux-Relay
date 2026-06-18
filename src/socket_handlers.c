@@ -20,9 +20,15 @@
 
 static gboolean accept_callback(GIOChannel *source, GIOCondition condition, gpointer data);
 static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpointer data);
+static gboolean playing_position_update(gpointer data);
 
 struct sockaddr_un server_addr;
 int server_socket;
+
+typedef struct {
+    GstElement *pipeline;
+    GIOChannel *client_channel;
+} ClientData;
 
 void setup_socket(StreamComponents components) {
     // zero the memory
@@ -61,25 +67,47 @@ void close_socket() {
     unlink(server_addr.sun_path);
 }
 
+// returns TRUE if the json has an id property and if its value is a number
+// returns FALSE if not
+gboolean check_for_id(json_t *j) {
+    json_t *val = json_object_get(j, "id");
+
+    if (!val) {
+        return FALSE;
+    } else if (!json_is_number(val)) {
+        return FALSE;
+    } else {
+        return TRUE;
+    }
+}
+
 static gboolean accept_callback(GIOChannel *source, GIOCondition condition, gpointer data) {
-    // setup client socket
+    // make the ClientData struct to pass multiple pointers in
+    ClientData *cd = calloc(1, sizeof(*cd));
+
+    cd->pipeline = (GstElement*) data;
 
     // keeping all this in case it's possible to just connect directly to this without the bridge
-    int client_socket;
     struct sockaddr_un client_addr;
     memset(&client_addr, 0, sizeof(client_addr));
     socklen_t clen = sizeof(client_addr);
 
     int fd = g_io_channel_unix_get_fd(source);
-    client_socket = accept(fd, (struct sockaddr *) &client_addr, &clen);
+    int client_fd = accept(fd, (struct sockaddr *) &client_addr, &clen);
 
-    GIOChannel *client_channel = g_io_channel_unix_new(client_socket);
+    cd->client_channel = g_io_channel_unix_new(client_fd);
 
     g_io_add_watch(
-        client_channel,
+        cd->client_channel,
         G_IO_IN | G_IO_HUP | G_IO_ERR,
         client_callback,
         data
+    );
+
+    g_timeout_add(
+        500, 
+        playing_position_update, 
+        cd
     );
 
     g_print("Accepted client connection.\n");
@@ -123,6 +151,8 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
     // load json
     root = json_loads(line, 0, &json_error);
 
+    // g_print("Incoming json: %s\n", line);
+
     // check json for errors
     if (!root)
     {
@@ -137,7 +167,7 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
     }
     
     // debug print to make sure we got it
-    g_print("%s\n", json_dumps(root, JSON_COMPACT));
+    // g_print("%s\n", json_dumps(root, JSON_COMPACT));
 
     // parse the actual command
     json_t *cmd_obj = json_object_get(root, "command");
@@ -151,6 +181,14 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
     const char *cmd = json_string_value(cmd_obj);
     char response_buf[256];
 
+    // get the id check out of the way
+    if (!check_for_id(root)) {
+        fprintf(stderr, "Toggle json has no id element.");
+        return TRUE;
+    }
+
+    gint64 id = json_integer_value(json_object_get(root, "id"));
+
     /* find the command */
     if (strcmp(cmd, "play") == 0) {
         gst_element_set_state(pipeline, GST_STATE_PLAYING);
@@ -158,6 +196,15 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
     } else if (strcmp(cmd, "pause") == 0) {
         gst_element_set_state(pipeline, GST_STATE_PAUSED);
         snprintf(response_buf, sizeof(response_buf), "Paused.");
+    } else if (strcmp(cmd, "get_duration") == 0) {
+        gint64 duration = 0;
+
+        gst_element_query_duration(pipeline, GST_FORMAT_TIME, &duration);
+
+        // convert to milliseconds
+        duration /= GST_MSECOND;
+
+        snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"stream_duration\": %ld}", id, duration);
     } else if (strcmp(cmd, "toggle") == 0) {
         GstState current_state, pending_state, effective_state;
 
@@ -170,12 +217,11 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
 
         if (effective_state == GST_STATE_PLAYING) {
             gst_element_set_state(pipeline, GST_STATE_PAUSED);
-            snprintf(response_buf, sizeof(response_buf), "Paused.");
+            snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"new_state\": \"paused\"}", id);
         } else {
             gst_element_set_state(pipeline, GST_STATE_PLAYING);
-            snprintf(response_buf, sizeof(response_buf), "Playing.");
+            snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"new_state\": \"playing\"}", id);
         }
-
     } else if (strcmp(cmd, "seek") == 0) {
         /*
           Seek must have two more options:
@@ -247,8 +293,10 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
             new_position
         );
 
-        g_print("Seek to %" GST_TIME_FORMAT " successful.\n", GST_TIME_ARGS(seek_time));
-        snprintf(response_buf, sizeof(response_buf), "Seek to %" GST_TIME_FORMAT " successful.\n", GST_TIME_ARGS(seek_time));
+        // convert seek time to back milliseconds before sending
+        seek_time /= GST_MSECOND;
+
+        snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"seek_pos\": \"%ld\"}", id, seek_time);
     } else if (strcmp(cmd, "set_file") == 0) {
         // get the file arg
         json_t *sub_cmd_obj = json_object_get(root, "filename");
@@ -258,8 +306,11 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
             json_decref(root);
             return TRUE;
         }
-    } else if (strcmp(cmd, "set_subs") == 0) {
-        // get the file arg
+
+        // TODO send the duration of the new file
+
+    } else if (strcmp(cmd, "list_files") == 0) {
+        // get all the files and send their names in a json array
         ;
     } else if (strcmp(cmd, "get_play_state") == 0) {
         GstState current_state;
@@ -267,15 +318,13 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
 
         gst_element_get_state(pipeline, &current_state, &pending_state, GST_SECOND);
     } else {
-        snprintf(response_buf, sizeof(response_buf), "error: command %s is not valid\n", cmd);
+        snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"error\": \"command %s is not valid\"}", id, cmd);
     }
-
-    // append newline
-    strcat(response_buf, "\n");
 
     GError *write_error = NULL;
     gsize bytes_written;
 
+    // write the response to the socket
     status = g_io_channel_write_chars(
         source,
         response_buf,
@@ -291,8 +340,59 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
 
     g_io_channel_flush(source, &write_error );
 
-
     // write(client_socket, response_buf, strlen(response_buf));
     json_decref(root);
+    return TRUE;
+}
+
+static gboolean playing_position_update(gpointer data) {
+    ClientData *cd = (ClientData*) data;
+
+    gint64 play_pos;
+    char response_buf[256];
+
+    // get the timestamp
+    gst_element_query_position(cd->pipeline, GST_FORMAT_TIME, &play_pos);
+
+    // convert to milliseconds
+    play_pos /= GST_MSECOND;
+
+    // build the json
+    json_t *root = json_object();
+    json_object_set_new(root, "update_type", json_string("position"));
+    json_object_set_new(root, "new_position", json_integer(play_pos));
+
+    snprintf(response_buf, sizeof(response_buf), "%s", json_dumps(root, JSON_COMPACT));
+
+    GError *write_error = NULL;
+    gsize bytes_written;
+    
+    GIOStatus status = g_io_channel_write_chars(
+        cd->client_channel,
+        response_buf,
+        -1,
+        &bytes_written,
+        &write_error
+    );
+
+    if (write_error) {
+        fprintf(stderr,"Socket write error: %s\n", write_error->message);
+    }
+
+    GError *flush_error = NULL;
+    g_io_channel_flush(cd->client_channel, &write_error);
+
+    if (flush_error) {
+        fprintf(stderr, "Flush error: %s\n", flush_error->message);
+    }
+
+    // g_print(
+    // "write status=%d bytes=%zu\n",
+    //     status,
+    //     bytes_written
+    // );
+
+    json_decref(root);
+
     return TRUE;
 }
