@@ -6,6 +6,12 @@ const ws = new WebSocket(`${protocol}//${host}/ws`);
 
 const pendingRequests = new Map();
 
+function random_id() {
+    let new_id = Date.now() + Math.floor(Math.random() * 1_000_000_000);
+    console.log(new_id);
+    return new_id;
+}
+
 ws.addEventListener("open", () => {
     console.log("Connected to websocket.");
     // TODO get metadata or something
@@ -13,6 +19,7 @@ ws.addEventListener("open", () => {
 
 ws.addEventListener("message", (event) => {
     const msg = JSON.parse(event.data);
+    // console.log("Receiving: " + event.data);
 
     if (Object.hasOwn(msg, "id")) {
         const resolver = pendingRequests.get(msg.id);
@@ -30,11 +37,13 @@ ws.addEventListener("error", () => {
 });
 
 function send_to_server(cmd) {
-    ws.send(JSON.stringify(cmd));
+    let send_str = JSON.stringify(cmd)
+    // console.log("Sending:" + send_str);
+    ws.send(send_str);
 }
 
 function get_playing_state() {
-    const id = Date.now() + Math.floor(Math.random() * 1_000_000_000);
+    const id = random_id();
 
     const cmd = {
         "command": "get_play_state",
@@ -48,7 +57,7 @@ function get_playing_state() {
 }
 
 function play_pause() {
-    const id = Date.now() + Math.floor(Math.random() * 1_000_000_000);
+    const id = random_id();
 
     const cmd = {
         "command": "toggle",
@@ -59,7 +68,7 @@ function play_pause() {
 }
 
 function seek(timestamp) {
-    const id = Date.now() + Math.floor(Math.random() * 1_000_000_000);
+    const id = random_id();
 
     const cmd = {
         "command": "seek",
