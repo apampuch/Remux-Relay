@@ -13,6 +13,9 @@ const seek_bar = document.getElementById("seekBar");
 seek_bar.min = 0;
 seek_bar.max = 0;
 
+// only update the seekbar from playing time while true
+var update_seekbar = true;
+
 function random_id() {
     let new_id = Date.now() + Math.floor(Math.random() * 1_000_000_000);
     // console.log(new_id);
@@ -20,22 +23,33 @@ function random_id() {
 }
 
 function convertMsToTime(ms) {
-  // Calculate total units
-  let seconds = Math.floor(ms / 1000);
-  let minutes = Math.floor(seconds / 60);
-  let hours = Math.floor(minutes / 60);
+    // Calculate total units
+    let seconds = Math.floor(ms / 1000);
+    let minutes = Math.floor(seconds / 60);
+    let hours = Math.floor(minutes / 60);
 
-  // Use modulo to get remaining parts
-  seconds = seconds % 60;
-  minutes = minutes % 60;
+    // Use modulo to get remaining parts
+    seconds = seconds % 60;
+    minutes = minutes % 60;
 
-  // Format numbers to always show 2 digits using padStart()
-  const formattedH = String(hours).padStart(2, '0');
-  const formattedM = String(minutes).padStart(2, '0');
-  const formattedS = String(seconds).padStart(2, '0');
+    // Format numbers to always show 2 digits using padStart()
+    const formattedH = String(hours).padStart(2, '0');
+    const formattedM = String(minutes).padStart(2, '0');
+    const formattedS = String(seconds).padStart(2, '0');
 
-  return `${formattedH}:${formattedM}:${formattedS}`;
+    return `${formattedH}:${formattedM}:${formattedS}`;
 }
+
+seek_bar.addEventListener("input", (event) => {
+    // just turn off seekbar updating while dragging so we don't get weirdness
+    update_seekbar = false;
+})
+
+seek_bar.addEventListener("change", (event) => {
+    seek(event.target.value);
+
+    update_seekbar = true;
+})
 
 // TODO maybe just get rid of the whole promise architecture and just take things as they come
 
@@ -71,6 +85,9 @@ ws.addEventListener("message", (event) => {
 
             // ignore if duration is 0 since we might get a position update before the initial duration update
             if (seek_bar == 0) return;
+
+            // do nothing if we aren't updating the seekbar
+            if (!update_seekbar) return;
 
             // the stream duration is always stored in seek_bar.max in milliseconds
             seek_bar.value = msg.new_position;
