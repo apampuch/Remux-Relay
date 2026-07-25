@@ -102,4 +102,11 @@ gst-launch-1.0 \
     audioconvert ! audioresample ! \
     opusenc ! queue ! whip. \
   whipclientsink name=whip \
-    signaller::whip-endpoint="http://mediamtx:8889/stream/whip"```
+    signaller::whip-endpoint="http://mediamtx:8889/stream/whip"
+```
+
+You may want to set these in `/etc/sysctl.conf` if you get stuttering issues:
+```bash
+net.core.rmem_max = 16777216
+net.core.rmem_default = 4194304
+```
