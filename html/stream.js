@@ -24,8 +24,12 @@ pc.ontrack = ({
 //     console.log("done");
 //   });
 // maybe replace this with above block so we don't have to wrap in async
+
 const offer = await pc.createOffer();
 await pc.setLocalDescription(offer);
+
+console.log("big wait?");
+
 await new Promise(resolve => {
     if (pc.iceGatheringState === 'complete') return resolve();
     pc.onicegatheringstatechange = () => {
