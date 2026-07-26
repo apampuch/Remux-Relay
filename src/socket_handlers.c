@@ -5,6 +5,7 @@
 #include "gst/gstformat.h"
 #include "gst/gstsegment.h"
 #include "gst/gstutils.h"
+#include "dirent.h"
 #include <jansson.h>
 #include <stdio.h>
 #include <string.h>
@@ -311,8 +312,15 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
 
     } else if (strcmp(cmd, "list_files") == 0) {
         // get all the files and send their names in a json array
+
+        // look in /videos for every mp4 (and mkv? maybe webm?) file
+
+        // put all paths in some kind of list
+
+        // send to the json
         ;
     } else if (strcmp(cmd, "get_play_state") == 0) {
+        // this seems to be unused? it doesn't return anything
         GstState current_state;
         GstState pending_state;
 
