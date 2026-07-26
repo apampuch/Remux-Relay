@@ -1,62 +1,56 @@
 async function start() {
-const pc = new RTCPeerConnection({
-    iceServers: [{
-    urls: 'stun:stun.l.google.com:19302'
-    }]
-});
-pc.addTransceiver('video', {
-    direction: 'recvonly'
-});
-pc.addTransceiver('audio', {
-    direction: 'recvonly'
-});
-pc.ontrack = ({
-    streams
-}) => {
-    // console.log('ontrack fired', streams);
-    document.getElementById('videoPlayer').srcObject = streams[0];
-};
-// pc.oniceconnectionstatechange = () => console.log('ICE state:', pc.iceConnectionState);
-// pc.onconnectionstatechange = () => console.log('connection state:', pc.connectionState);
-// pc.createOffer()
-//   .then(offer => pc.setLocalDescription(offer))
-//   .then(() => {
-//     console.log("done");
-//   });
-// maybe replace this with above block so we don't have to wrap in async
+    const pc = new RTCPeerConnection({
+        iceServers: []  // no STUN, don't wait for srflx candidates
+    });
 
-const offer = await pc.createOffer();
-await pc.setLocalDescription(offer);
-
-console.log("big wait?");
-
-await new Promise(resolve => {
-    if (pc.iceGatheringState === 'complete') return resolve();
-    pc.onicegatheringstatechange = () => {
-    if (pc.iceGatheringState === 'complete') resolve();
+    pc.addTransceiver('video', {
+        direction: 'recvonly'
+    });
+    pc.addTransceiver('audio', {
+        direction: 'recvonly'
+    });
+    pc.ontrack = ({
+        streams
+    }) => {
+        // console.log('ontrack fired', streams);
+        document.getElementById('videoPlayer').srcObject = streams[0];
     };
-});
-// console.log('offer SDP:', pc.localDescription.sdp);
+    
+    // pc.oniceconnectionstatechange = () => console.log('ICE state:', pc.iceConnectionState);
+    // pc.onconnectionstatechange = () => console.log('connection state:', pc.connectionState);
+    // pc.createOffer()
+    //   .then(offer => pc.setLocalDescription(offer))
+    //   .then(() => {
+    //     console.log("done");
+    //   });
 
-const host = window.location.hostname;
+    // maybe replace this with above block so we don't have to wrap in async
 
-const res = await fetch(`http://${host}:8889/stream/whep`, {
-    method: 'POST',
-    headers: {
-    'Content-Type': 'application/sdp'
-    },
-    body: pc.localDescription.sdp
-});
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
 
-if (!res.ok) {
-    console.error('WHEP error:', res.status, await res.text());
-    return;
-}
-const answer = await res.text();
-// console.log('answer SDP:', answer);
-await pc.setRemoteDescription({
-    type: 'answer',
-    sdp: answer
-});
+    console.log("big wait?");
+    // console.log('offer SDP:', pc.localDescription.sdp);
+
+    const host = window.location.hostname;
+
+    const res = await fetch(`http://${host}:8889/stream/whep`, {
+        method: 'POST',
+        headers: {
+        'Content-Type': 'application/sdp'
+        },
+        body: pc.localDescription.sdp
+    });
+
+    if (!res.ok) {
+        console.error('WHEP error:', res.status, await res.text());
+        return;
+    }
+    const answer = await res.text();
+    // console.log('answer SDP:', answer);
+    await pc.setRemoteDescription({
+        type: 'answer',
+        sdp: answer
+    });
 }
 start();
