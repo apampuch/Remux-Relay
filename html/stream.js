@@ -10,10 +10,17 @@ async function start() {
         direction: 'recvonly'
     });
     pc.ontrack = ({
-        streams
+        streams, receiver, track
     }) => {
         // console.log('ontrack fired', streams);
-        document.getElementById('videoPlayer').srcObject = streams[0];
+        document.getElementById('videoPlayer').srcObject = streams[0];  
+
+        if ('jitterBufferTarget' in receiver) {
+            receiver.jitterBufferTarget = 300;
+            console.log(`jitterBufferTarget set for ${track.kind}:`, receiver.jitterBufferTarget);
+        } else {
+            console.log(`jitterBufferTarget NOT supported for ${track.kind}`);
+        }
     };
     
     // pc.oniceconnectionstatechange = () => console.log('ICE state:', pc.iceConnectionState);
@@ -29,7 +36,6 @@ async function start() {
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    console.log("big wait?");
     // console.log('offer SDP:', pc.localDescription.sdp);
 
     const host = window.location.hostname;
