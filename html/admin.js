@@ -56,6 +56,9 @@ seek_bar.addEventListener("change", (event) => {
 ws.addEventListener("open", async () => {
     console.log("Connected to websocket.");
 
+    // get the list of files
+    list_files();
+
     // update stream duration
     var duration_obj = await get_duration();
 
@@ -64,37 +67,42 @@ ws.addEventListener("open", async () => {
 });
 
 ws.addEventListener("message", (event) => {
-    const msg = JSON.parse(event.data);
-    // console.log("Receiving: " + event.data);
+    try {
+        const msg = JSON.parse(event.data);
+        // console.log("Receiving: " + event.data);
 
-    if (Object.hasOwn(msg, "id")) {
-        const resolver = pendingRequests.get(msg.id);
-        if (resolver) {
-            // console.log("Removing id: " + msg.id);
-            pendingRequests.delete(msg.id);
-            resolver(msg);
-        } else {
-            console.warn("id not found:" + msg.id);
-        }
-    } else if (Object.hasOwn(msg, "update_type")) {
-        if (msg.update_type == "position") {
-            if (!Object.hasOwn(msg, "new_position")) {
-                console.error("Position update does not have new_position property");
-                return;
+        if (Object.hasOwn(msg, "id")) {
+            const resolver = pendingRequests.get(msg.id);
+            if (resolver) {
+                // console.log("Removing id: " + msg.id);
+                pendingRequests.delete(msg.id);
+                resolver(msg);
+            } else {
+                console.warn("id not found:" + msg.id);
+            }
+        } else if (Object.hasOwn(msg, "update_type")) {
+            if (msg.update_type == "position") {
+                if (!Object.hasOwn(msg, "new_position")) {
+                    console.error("Position update does not have new_position property");
+                    return;
+                }
+
+                // ignore if duration is 0 since we might get a position update before the initial duration update
+                if (seek_bar == 0) return;
+
+                // do nothing if we aren't updating the seekbar
+                if (!update_seekbar) return;
+
+                // the stream duration is always stored in seek_bar.max in milliseconds
+                seek_bar.value = msg.new_position;
+                document.getElementById("currentPosition").textContent = convertMsToTime(msg.new_position);
             }
 
-            // ignore if duration is 0 since we might get a position update before the initial duration update
-            if (seek_bar == 0) return;
-
-            // do nothing if we aren't updating the seekbar
-            if (!update_seekbar) return;
-
-            // the stream duration is always stored in seek_bar.max in milliseconds
-            seek_bar.value = msg.new_position;
-            document.getElementById("currentPosition").textContent = convertMsToTime(msg.new_position);
         }
-
+    } catch (error) {
+        console.log(event.data);
     }
+    
 });
 
 ws.addEventListener("error", () => {
@@ -175,6 +183,29 @@ function seek(timestamp) {
     return new Promise((resolve) => {
         pendingRequests.set(id, resolve);
         send_to_server(cmd);
+    });
+}
+
+async function list_files() {
+    const id = random_id();
+
+    const cmd = {
+        "command": "list_files",
+        "id": id
+    };
+
+    const promise = new Promise((resolve) => {
+        pendingRequests.set(id, resolve);
+        send_to_server(cmd);
+    });
+
+    const response = await promise;
+
+    const dropdown = document.getElementById("fileSelector");
+
+    response.paths.forEach((item) => {
+        const option = new Option(item, item);
+        dropdown.add(option);
     });
 }
 

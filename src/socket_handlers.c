@@ -31,6 +31,21 @@ typedef struct {
     GIOChannel *client_channel;
 } ClientData;
 
+// eventually add mkv and maybe webm to this when support for those is added
+const char *VALID_VIDEO_TYPES[] = {"mp4"};
+const int VALID_TYPES_LEN = 1;
+
+gboolean ends_with(const char *str, const char *suffix)
+{
+    size_t len = strlen(str);
+    size_t suffix_len = strlen(suffix);
+
+    if (suffix_len > len)
+        return FALSE;
+
+    return strcmp(str + len - suffix_len, suffix) == 0;
+}
+
 void setup_socket(StreamComponents components) {
     // zero the memory
     memset(&server_addr, 0, sizeof(server_addr));
@@ -312,13 +327,38 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
 
     } else if (strcmp(cmd, "list_files") == 0) {
         // get all the files and send their names in a json array
+        json_t *response_root = json_object();
+        json_t *paths = json_array();
+        json_object_set_new(response_root, "id", json_integer(id));
 
-        // look in /videos for every mp4 (and mkv? maybe webm?) file
+        // open videos folder
+        DIR *videos_dir = opendir("/videos");
 
-        // put all paths in some kind of list
+        if (videos_dir == NULL) {
+            perror("Could not open videos directory.");
+            return 1;
+        }
 
-        // send to the json
-        ;
+        struct dirent *entry;
+
+        // iterate through dir, filter for files with the correct extensions
+        while ((entry = readdir(videos_dir)) != NULL) {
+            for (int i=0; i<VALID_TYPES_LEN; i++) {
+                if (ends_with(entry->d_name, VALID_VIDEO_TYPES[i])) {
+                    json_array_append_new(paths, json_string(entry->d_name));
+                }
+            }
+        }
+
+        // send to the json and response buffer
+        json_object_set_new(response_root, "paths", paths);
+
+        char *dump = json_dumps(response_root, 0);
+        snprintf(response_buf, sizeof(response_buf), "%s", dump);
+        free(dump);
+
+        json_decref(paths);
+        json_decref(response_root);
     } else if (strcmp(cmd, "get_play_state") == 0) {
         // this seems to be unused? it doesn't return anything
         GstState current_state;
@@ -343,7 +383,7 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
 
     // how tf do I handle write errors, if at all
     if (write_error) {
-        fprintf(stderr,"Error writing message to socket.");
+        fprintf(stderr, "Error writing message to socket.");
     }
 
     g_io_channel_flush(source, &write_error );
