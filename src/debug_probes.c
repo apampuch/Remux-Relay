@@ -32,6 +32,23 @@
 //     return GST_PAD_PROBE_OK;
 // }
 
+static guint64 packet_number = 0;
+
+static GstPadProbeReturn audio_drop_probe(
+    GstPad *pad,
+    GstPadProbeInfo *info,
+    gpointer user_data)
+{
+    packet_number++;
+
+    if (packet_number % 50 == 0) {
+        g_print("Dropped packet %" G_GUINT64_FORMAT "\n", packet_number);
+        return GST_PAD_PROBE_DROP;
+    }
+
+    return GST_PAD_PROBE_OK;
+}
+
 static void on_consumer_pipeline_created(
     GstElement *sink,
     gchar *consumer_id,
@@ -135,18 +152,18 @@ int add_probes(StreamComponents *components) {
     //     NULL,
     //     NULL);
 
-    g_signal_connect(
-        components->whip_sink,
-        "consumer-pipeline-created",
-        G_CALLBACK(on_consumer_pipeline_created),
-        NULL);
+    // g_signal_connect(
+    //     components->whip_sink,
+    //     "consumer-pipeline-created",
+    //     G_CALLBACK(on_consumer_pipeline_created),
+    //     NULL);
 
-    // make whip sink forward child messages
-    g_object_set(
-        components->whip_sink,
-        "message-forward",
-        TRUE,
-        NULL);
+    // // make whip sink forward child messages
+    // g_object_set(
+    //     components->whip_sink,
+    //     "message-forward",
+    //     TRUE,
+    //     NULL);
 
     // GstPad *segment_src_pad =
     //     gst_element_get_static_pad(
@@ -169,6 +186,15 @@ int add_probes(StreamComponents *components) {
     //     segment_sink_pad,
     //     GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
     //     segment_probe,
+    //     NULL,
+    //     NULL);
+
+    // GstPad *audio_drop_pad = gst_element_get_static_pad(components->audio_parse, "src");
+
+    // gst_pad_add_probe(
+    //     audio_drop_pad,
+    //     GST_PAD_PROBE_TYPE_BUFFER,
+    //     audio_drop_probe,
     //     NULL,
     //     NULL);
 

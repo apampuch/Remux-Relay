@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-// #include "debug_probes.h"
+#include "debug_probes.h"
 #include "stream_components.h"
 #include "socket_handlers.h"
 
@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
     gst_init(&argc, &argv);
 
     setup_stream_components(&components);
-    // add_probes(&components);
+    add_probes(&components);
 
     // start playing
     gst_element_set_state(components.pipeline, GST_STATE_PLAYING);
