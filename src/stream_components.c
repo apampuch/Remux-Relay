@@ -48,27 +48,29 @@ pad_handler_exit:
 
 int setup_stream_components(StreamComponents *components) {
     // build the source, sink, filters
-    components->source           = gst_element_factory_make("filesrc", "source");
-    components->demux            = gst_element_factory_make("qtdemux", "demux");
-    components->video_queue      = gst_element_factory_make("queue2", "video_queue");
-    // components->video_identity   = gst_element_factory_make("identity", "video_identity");
-    components->video_parse      = gst_element_factory_make("h264parse", "video_parse");
-    components->audio_queue      = gst_element_factory_make("queue2", "audio_queue");
-    // components->audio_identity   = gst_element_factory_make("identity", "audio_identity");
-    components->audio_parse      = gst_element_factory_make("opusparse", "audio_parse");
-    components->whip_sink        = gst_element_factory_make("whipclientsink", "sink");
+    components->source          = gst_element_factory_make("filesrc", "source");
+    components->demux           = gst_element_factory_make("qtdemux", "demux");
+    components->video_queue     = gst_element_factory_make("queue2", "video_queue");
+    components->video_identity  = gst_element_factory_make("identity", "video_identity");
+    components->video_parse     = gst_element_factory_make("h264parse", "video_parse");
+    components->video_rate      = gst_element_factory_make("videorate", "video_rate");
+    components->audio_queue     = gst_element_factory_make("queue2", "audio_queue");
+    components->audio_identity  = gst_element_factory_make("identity", "audio_identity");
+    components->audio_parse     = gst_element_factory_make("opusparse", "audio_parse");
+    components->whip_sink       = gst_element_factory_make("whipclientsink", "sink");
 
     components->pipeline = gst_pipeline_new("main-pipeline");
 
-    if (!components->pipeline ||
-        !components->source ||
-        !components->demux ||
-        !components->video_queue ||
-        // !components->video_identity ||
-        !components->video_parse ||
-        !components->audio_queue ||
-        // !components->audio_identity ||
-        !components->audio_parse ||
+    if (!components->pipeline       ||
+        !components->source         ||
+        !components->demux          ||
+        !components->video_queue    ||
+        !components->video_identity ||
+        !components->video_parse    ||
+        !components->video_rate     ||
+        !components->audio_queue    ||
+        !components->audio_identity ||
+        !components->audio_parse    ||
         !components->whip_sink
     ) {
         g_printerr ("Not all elements could be created.\n");
@@ -81,10 +83,11 @@ int setup_stream_components(StreamComponents *components) {
         components->source,
         components->demux,
         components->video_queue,
-        // components->video_identity,
+        components->video_identity,
         components->video_parse,
+        components->video_rate,
         components->audio_queue,
-        // components->audio_identity,
+        components->audio_identity,
         components->audio_parse,
         components->whip_sink,
         NULL
@@ -104,7 +107,7 @@ int setup_stream_components(StreamComponents *components) {
 
     try_link = gst_element_link_many(
         components->video_queue,
-        // components->video_identity,
+        components->video_identity,
         components->video_parse,
         components->whip_sink,
         NULL);
@@ -117,7 +120,7 @@ int setup_stream_components(StreamComponents *components) {
 
     try_link = gst_element_link_many(
         components->audio_queue,
-        // components->audio_identity,
+        components->audio_identity,
         components->audio_parse,
         components->whip_sink,
         NULL);
@@ -134,37 +137,42 @@ int setup_stream_components(StreamComponents *components) {
         "max-size-buffers", 0,
         "max-size-bytes", 0,
         "max-size-time", 500 * GST_MSECOND,
-        "leaky", 2,
+        // "leaky", 2,  // apparently queue2 doesn't have a leaky property
         NULL
     );
     g_object_set(
         components->audio_queue,
         "max-size-buffers", 0,
         "max-size-bytes", 0,
-        "max-size-time", 50 * GST_MSECOND,
+        "max-size-time", 500 * GST_MSECOND,
         NULL
     );
 
-    // // configure identity filters
-    // g_object_set(
-    //     components->video_identity,
-    //     "sync", FALSE,
-    //     "single-segment", TRUE,
-    //     NULL
-    // );
-    // g_object_set(
-    //     components->audio_identity,
-    //     "sync", FALSE,
-    //     "single-segment", TRUE,
-    //     NULL
-    // );
+    // configure identity filters
+    g_object_set(
+        components->video_identity,
+        "sync", TRUE,
+        "signal-handoffs", FALSE,
+        // "single-segment", TRUE,
+        NULL
+    );
+    g_object_set(
+        components->audio_identity,
+        "sync", TRUE,
+        "signal-handoffs", FALSE,
+        // "single-segment", TRUE,
+        NULL
+    );
 
     // inject SPS/PPS
     g_object_set(
         components->video_parse,
-        "config-interval", -1,
+        "config-interval", 1,
         NULL
     );
+
+    // make it drop duplicate frames to maintain a constant rate
+    g_object_set(components->video_rate, "drop-only", TRUE, NULL);
 
     // add async handling to whipclientsink
     gst_util_set_object_arg(
@@ -172,6 +180,16 @@ int setup_stream_components(StreamComponents *components) {
         "async-handling",
         "true"
     );
+
+    // fix bitrates for whip sink
+    // TODO make it possible to set this in docker somehow
+    g_object_set(components->whip_sink,
+        "max-bitrate", 12000000,
+        NULL); // 12 Mbps ceiling
+
+    g_object_set(components->whip_sink,
+        "start-bitrate", 10000000,
+        NULL); // start near actual rate
 
     // set the file 
     g_object_set(components->source, "location", "/videos/test.mp4", NULL);
@@ -203,7 +221,7 @@ int setup_stream_components(StreamComponents *components) {
     g_object_unref(signaller);
 
     // set congestion control
-    g_object_set(components->whip_sink, "congestion-control", 2, NULL);
+    g_object_set(components->whip_sink, "congestion-control", 0, NULL);
 
     /* Connect to the pad-added signal */
     g_signal_connect(components->demux, "pad-added", G_CALLBACK (pad_added_handler), components);
