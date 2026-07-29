@@ -6,6 +6,7 @@
 #include "gst/gstsegment.h"
 #include "gst/gstutils.h"
 #include "dirent.h"
+#include "stream_components.h"
 #include <jansson.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,7 +28,7 @@ struct sockaddr_un server_addr;
 int server_socket;
 
 typedef struct {
-    GstElement *pipeline;
+    StreamComponents *components;
     GIOChannel *client_channel;
 } ClientData;
 
@@ -46,7 +47,7 @@ gboolean ends_with(const char *str, const char *suffix)
     return strcmp(str + len - suffix_len, suffix) == 0;
 }
 
-void setup_socket(StreamComponents components) {
+void setup_socket(StreamComponents *components) {
     // zero the memory
     memset(&server_addr, 0, sizeof(server_addr));
 
@@ -73,7 +74,7 @@ void setup_socket(StreamComponents components) {
 
     // setup io channel and callback
     GIOChannel *channel = g_io_channel_unix_new(server_socket);
-    g_io_add_watch(channel, G_IO_IN, accept_callback, components.pipeline);
+    g_io_add_watch(channel, G_IO_IN, accept_callback, components);
 
     listen(server_socket, 5);
 }
@@ -101,7 +102,7 @@ static gboolean accept_callback(GIOChannel *source, GIOCondition condition, gpoi
     // make the ClientData struct to pass multiple pointers in
     ClientData *cd = calloc(1, sizeof(*cd));
 
-    cd->pipeline = (GstElement*) data;
+    cd->components = (StreamComponents*) data;
 
     // keeping all this in case it's possible to just connect directly to this without the bridge
     struct sockaddr_un client_addr;
@@ -160,7 +161,8 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
     // we might not have a full line with a newline at the end
     // maybe check for that
 
-    GstElement *pipeline = data;
+    StreamComponents *components = data;
+    GstElement *pipeline = components->pipeline;
     json_t *root;
     json_error_t json_error;
 
@@ -400,7 +402,7 @@ static gboolean playing_position_update(gpointer data) {
     char response_buf[256];
 
     // get the timestamp
-    gst_element_query_position(cd->pipeline, GST_FORMAT_TIME, &play_pos);
+    gst_element_query_position(cd->components->pipeline, GST_FORMAT_TIME, &play_pos);
 
     // convert to milliseconds
     play_pos /= GST_MSECOND;

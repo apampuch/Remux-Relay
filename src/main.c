@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
     // g_timeout_add(100, debug_timer, components.pipeline);
     
     /* Set up socket stuff */
-    setup_socket(components);
+    setup_socket(&components);
 
     GMainLoop *loop = g_main_loop_new(NULL, FALSE);
     g_main_loop_run(loop);
