@@ -256,6 +256,8 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
 
         gst_element_get_state(pipeline, &current_state, &pending_state, GST_SECOND);
 
+        // printf("%u\n", current_state);
+
         if (current_state != GST_STATE_PLAYING) {
             gst_element_set_state(pipeline, GST_STATE_PLAYING);
         }
@@ -307,7 +309,7 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
         gst_element_seek_simple(
             pipeline,
             GST_FORMAT_TIME,
-            GST_SEEK_FLAG_KEY_UNIT | GST_SEEK_FLAG_SNAP_BEFORE,
+            GST_SEEK_FLAG_KEY_UNIT | GST_SEEK_FLAG_SNAP_BEFORE | GST_SEEK_FLAG_SEGMENT,
             new_position
         );
 
