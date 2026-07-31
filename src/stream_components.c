@@ -191,6 +191,7 @@ int setup_stream_components(StreamComponents *components) {
         "start-bitrate", 10000000,
         NULL); // start near actual rate
 
+    // TODO set a different file
     // set the file 
     g_object_set(components->source, "location", "/videos/test.mp4", NULL);
     

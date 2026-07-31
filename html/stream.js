@@ -1,3 +1,7 @@
+const pc = new RTCPeerConnection({
+    iceServers: []  // no STUN, don't wait for srflx candidates
+});
+
 // starts the stream, should be called h
 function startStream() {
     pc.createOffer()
@@ -34,10 +38,6 @@ function startStream() {
         .catch(err => console.error('setup failed:', err));
 }
 
-const pc = new RTCPeerConnection({
-    iceServers: []  // no STUN, don't wait for srflx candidates
-});
-
 pc.addTransceiver('video', {
     direction: 'recvonly'
 });
@@ -60,5 +60,28 @@ pc.ontrack = ({
 
 // pc.oniceconnectionstatechange = () => console.log('ICE state:', pc.iceConnectionState);
 // pc.onconnectionstatechange = () => console.log('connection state:', pc.connectionState);
+
+// TODO make this auto-reconnect
+pc.onconnectionstatechange = () => {
+    console.log(pc.connectionState);
+
+    switch (pc.connectionState) {
+        case "connected":
+            // Fully connected
+            break;
+
+        case "disconnected":
+            // Lost connectivity (may recover)
+            break;
+
+        case "failed":
+            // ICE has failed; generally won't recover without an ICE restart
+            break;
+
+        case "closed":
+            // Someone called pc.close()
+            break;
+    }
+};
 
 startStream();

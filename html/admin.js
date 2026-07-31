@@ -101,6 +101,7 @@ ws.addEventListener("message", (event) => {
         }
     } catch (error) {
         console.log(event.data);
+        throw error;
     }
     
 });
