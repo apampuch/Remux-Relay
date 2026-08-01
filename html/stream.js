@@ -1,3 +1,5 @@
+import { ws } from "./websockets.js";
+
 const pc = new RTCPeerConnection({
     iceServers: []  // no STUN, don't wait for srflx candidates
 });

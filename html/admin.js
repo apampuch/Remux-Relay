@@ -1,10 +1,6 @@
-const protocol = window.location.protocol === "https:"
-    ? "wss:"
-    : "ws:";
-const host = window.location.host;
-const ws = new WebSocket(`${protocol}//${host}/ws`);
+import { ws } from "./websockets.js";
 
-const pendingRequests = new Map();
+const pendingRequests = new Map();  // only the admin page deals with pending requests
 
 // the stream duration is stored in seek_bar.max in milliseconds
 const seek_bar = document.getElementById("seekBar");
