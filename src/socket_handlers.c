@@ -6,6 +6,7 @@
 #include "gst/gstsegment.h"
 #include "gst/gstutils.h"
 #include "dirent.h"
+#include "stream_components.h"
 #include <jansson.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,7 +28,7 @@ struct sockaddr_un server_addr;
 int server_socket;
 
 typedef struct {
-    GstElement *pipeline;
+    StreamComponents *components;
     GIOChannel *client_channel;
 } ClientData;
 
@@ -46,7 +47,7 @@ gboolean ends_with(const char *str, const char *suffix)
     return strcmp(str + len - suffix_len, suffix) == 0;
 }
 
-void setup_socket(StreamComponents components) {
+void setup_socket(StreamComponents *components) {
     // zero the memory
     memset(&server_addr, 0, sizeof(server_addr));
 
@@ -73,7 +74,7 @@ void setup_socket(StreamComponents components) {
 
     // setup io channel and callback
     GIOChannel *channel = g_io_channel_unix_new(server_socket);
-    g_io_add_watch(channel, G_IO_IN, accept_callback, components.pipeline);
+    g_io_add_watch(channel, G_IO_IN, accept_callback, components);
 
     listen(server_socket, 5);
 }
@@ -101,7 +102,7 @@ static gboolean accept_callback(GIOChannel *source, GIOCondition condition, gpoi
     // make the ClientData struct to pass multiple pointers in
     ClientData *cd = calloc(1, sizeof(*cd));
 
-    cd->pipeline = (GstElement*) data;
+    cd->components = (StreamComponents*) data;
 
     // keeping all this in case it's possible to just connect directly to this without the bridge
     struct sockaddr_un client_addr;
@@ -160,14 +161,13 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
     // we might not have a full line with a newline at the end
     // maybe check for that
 
-    GstElement *pipeline = data;
+    StreamComponents *components = data;
+    GstElement *pipeline = components->pipeline;
     json_t *root;
     json_error_t json_error;
 
     // load json
     root = json_loads(line, 0, &json_error);
-
-    // g_print("Incoming json: %s\n", line);
 
     // check json for errors
     if (!root)
@@ -181,9 +181,6 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
         json_decref(root);
         return TRUE;
     }
-    
-    // debug print to make sure we got it
-    // g_print("%s\n", json_dumps(root, JSON_COMPACT));
 
     // parse the actual command
     json_t *cmd_obj = json_object_get(root, "command");
@@ -208,10 +205,10 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
     /* find the command */
     if (strcmp(cmd, "play") == 0) {
         gst_element_set_state(pipeline, GST_STATE_PLAYING);
-        snprintf(response_buf, sizeof(response_buf), "Playing.");
+        snprintf(response_buf, sizeof(response_buf), "Playing.\n");
     } else if (strcmp(cmd, "pause") == 0) {
         gst_element_set_state(pipeline, GST_STATE_PAUSED);
-        snprintf(response_buf, sizeof(response_buf), "Paused.");
+        snprintf(response_buf, sizeof(response_buf), "Paused.\n");
     } else if (strcmp(cmd, "get_duration") == 0) {
         gint64 duration = 0;
 
@@ -220,7 +217,7 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
         // convert to milliseconds
         duration /= GST_MSECOND;
 
-        snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"stream_duration\": %ld}", id, duration);
+        snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"stream_duration\": %ld}\n", id, duration);
     } else if (strcmp(cmd, "toggle") == 0) {
         GstState current_state, pending_state, effective_state;
 
@@ -233,10 +230,10 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
 
         if (effective_state == GST_STATE_PLAYING) {
             gst_element_set_state(pipeline, GST_STATE_PAUSED);
-            snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"new_state\": \"paused\"}", id);
+            snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"new_state\": \"paused\"}\n", id);
         } else {
             gst_element_set_state(pipeline, GST_STATE_PLAYING);
-            snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"new_state\": \"playing\"}", id);
+            snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"new_state\": \"playing\"}\n", id);
         }
     } else if (strcmp(cmd, "seek") == 0) {
         /*
@@ -253,6 +250,8 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
         GstState current_state, pending_state, effective_state;
 
         gst_element_get_state(pipeline, &current_state, &pending_state, GST_SECOND);
+
+        // printf("%u\n", current_state);
 
         if (current_state != GST_STATE_PLAYING) {
             gst_element_set_state(pipeline, GST_STATE_PLAYING);
@@ -305,17 +304,21 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
         gst_element_seek_simple(
             pipeline,
             GST_FORMAT_TIME,
-            GST_SEEK_FLAG_KEY_UNIT | GST_SEEK_FLAG_SNAP_BEFORE,
+            GST_SEEK_FLAG_KEY_UNIT | GST_SEEK_FLAG_SNAP_BEFORE | GST_SEEK_FLAG_SEGMENT,
             new_position
         );
 
         // convert seek time to back milliseconds before sending
         seek_time /= GST_MSECOND;
 
-        snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"seek_pos\": \"%ld\"}", id, seek_time);
-    } else if (strcmp(cmd, "set_file") == 0) {
+        snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"seek_pos\": \"%ld\"}\n", id, seek_time);
+    } else if (strcmp(cmd, "start_video") == 0) {
+        // starts the chosen video file with the key "file", value is the filename
+        // does not send ID because it will be broadcast to all watchers
+        // should be sent with a bogus ID just to pass the ID check though
+
         // get the file arg
-        json_t *sub_cmd_obj = json_object_get(root, "filename");
+        json_t *sub_cmd_obj = json_object_get(root, "file");
 
         if (!json_is_string(sub_cmd_obj)) {
             fprintf(stderr, "error: command is not a string\n");
@@ -323,8 +326,35 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
             return TRUE;
         }
 
-        // TODO send the duration of the new file
+        // load the new file and change state to playing
+        char filename[263];  // POSIX standard file name length = 255 + 8 for "/videos/"
+        snprintf(filename, sizeof(filename), "/videos/%s", json_string_value(sub_cmd_obj));
 
+        gst_element_set_state(pipeline, GST_STATE_NULL);
+        gst_element_get_state(pipeline, NULL, NULL, GST_CLOCK_TIME_NONE);
+
+        setup_pipeline(components, filename);
+
+        // start playing
+        // initial_seek_flag = TRUE;
+        gst_element_set_state(components->pipeline, GST_STATE_PLAYING);
+
+        // send the duration of the new file
+        gint64 duration = 0;
+
+        gst_element_query_duration(pipeline, GST_FORMAT_TIME, &duration);
+
+        // convert to milliseconds
+        duration /= GST_MSECOND;
+
+        json_t *response_root = json_object();
+
+        json_object_set_new(response_root, "stream_duration", json_integer(duration));
+        json_object_set_new(response_root, "connection_cmd", json_string("connect"));
+
+        char *dump = json_dumps(response_root, 0);
+        snprintf(response_buf, sizeof(response_buf), "%s\n", dump);
+        free(dump);
     } else if (strcmp(cmd, "list_files") == 0) {
         // get all the files and send their names in a json array
         json_t *response_root = json_object();
@@ -354,7 +384,7 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
         json_object_set_new(response_root, "paths", paths);
 
         char *dump = json_dumps(response_root, 0);
-        snprintf(response_buf, sizeof(response_buf), "%s", dump);
+        snprintf(response_buf, sizeof(response_buf), "%s\n", dump);
         free(dump);
 
         json_decref(paths);
@@ -365,8 +395,33 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
         GstState pending_state;
 
         gst_element_get_state(pipeline, &current_state, &pending_state, GST_SECOND);
+    } else if (strcmp(cmd, "connect") == 0) {
+        // called when client first connects to the websocket
+
+        // if we're playing, tell to start playing
+        GstState current_state, pending_state, effective_state;
+
+        gst_element_get_state(pipeline, &current_state, &pending_state, GST_SECOND);
+
+        if (pending_state != GST_STATE_VOID_PENDING) 
+            effective_state = pending_state;
+        else
+            effective_state = current_state;
+
+        json_t *response_root = json_object();
+
+        if (effective_state == GST_STATE_PLAYING) {
+            json_object_set_new(response_root, "connection_cmd", json_string("connect"));
+        } else {
+            // does nothing
+            json_object_set_new(response_root, "connection_cmd", json_string("null_op"));
+        }
+
+        char *dump = json_dumps(response_root, 0);
+        snprintf(response_buf, sizeof(response_buf), "%s\n", dump);
+        free(dump);
     } else {
-        snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"error\": \"command %s is not valid\"}", id, cmd);
+        snprintf(response_buf, sizeof(response_buf), "{\"id\": %ld, \"error\": \"command %s is not valid\"}\n", id, cmd);
     }
 
     GError *write_error = NULL;
@@ -396,11 +451,26 @@ static gboolean client_callback(GIOChannel *source, GIOCondition condition, gpoi
 static gboolean playing_position_update(gpointer data) {
     ClientData *cd = (ClientData*) data;
 
+    // don't report if we don't have any components or pipeline
+    if (cd->components == NULL)
+        return TRUE;
+    if (cd->components->pipeline == NULL)
+        return TRUE;
+
+    // this might need to be more sophisticated
+    GstState state_check;
+    GstStateChangeReturn r = gst_element_get_state(cd->components->pipeline, &state_check, NULL, GST_SECOND);
+    // g_print("state return: %d, state: %d\n", r, state_check);
+    // don't report if we're not playing or paused
+    if (r != GST_STATE_CHANGE_SUCCESS || !(state_check == GST_STATE_PLAYING || state_check == GST_STATE_PAUSED))
+        return TRUE;
+
+
     gint64 play_pos;
     char response_buf[256];
 
     // get the timestamp
-    gst_element_query_position(cd->pipeline, GST_FORMAT_TIME, &play_pos);
+    gst_element_query_position(cd->components->pipeline, GST_FORMAT_TIME, &play_pos);
 
     // convert to milliseconds
     play_pos /= GST_MSECOND;
@@ -410,7 +480,7 @@ static gboolean playing_position_update(gpointer data) {
     json_object_set_new(root, "update_type", json_string("position"));
     json_object_set_new(root, "new_position", json_integer(play_pos));
 
-    snprintf(response_buf, sizeof(response_buf), "%s", json_dumps(root, JSON_COMPACT));
+    snprintf(response_buf, sizeof(response_buf), "%s\n", json_dumps(root, JSON_COMPACT));
 
     GError *write_error = NULL;
     gsize bytes_written;
@@ -433,13 +503,6 @@ static gboolean playing_position_update(gpointer data) {
     if (flush_error) {
         fprintf(stderr, "Flush error: %s\n", flush_error->message);
     }
-
-    // g_print(
-    // "write status=%d bytes=%zu\n",
-    //     status,
-    //     bytes_written
-    // );
-
     json_decref(root);
 
     return TRUE;

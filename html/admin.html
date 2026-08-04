@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="player.css">
-    <script src="stream.js" defer></script>
-    <script src="admin.js" defer></script>
+    <script src="stream.js" type="module" defer></script>
+    <script src="admin.js" type="module" defer></script>
   </head>
   <body>
     <div id="videoContainer">
@@ -26,7 +26,7 @@
             <button class="controlButton" id="skipBackButton">⟲</button>
             <button class="controlButton" id="playPauseButton">⏯︎</button>
             <button class="controlButton" id="skipForwardButton">⟳</button>
-            <p>File:</p> <select id="fileSelector"></select> <button class="playFileButton">PLAY</button>
+            <p>File:</p> <select id="fileSelector"></select> <button id="playFileButton">PLAY</button>
         </div>
         <div class="controlsRow">
             <p>File Password:</p> <input type="text" id="filePassword">

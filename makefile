@@ -1,5 +1,10 @@
+# use these for debug
+# CFLAGS := -g -O0 -fsanitize=address $(shell pkg-config --cflags gstreamer-1.0)
+# LIBS :=  -fsanitize=address $(shell pkg-config --libs gstreamer-1.0 jansson)
+
 CFLAGS := $(shell pkg-config --cflags gstreamer-1.0)
 LIBS := $(shell pkg-config --libs gstreamer-1.0 jansson)
+
 
 all: client server
 

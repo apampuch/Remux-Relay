@@ -1,6 +1,8 @@
 
+#include "glib-object.h"
 #include "gst/gstpipeline.h"
 #include "gst/gstutils.h"
+#include <stdio.h>
 
 #include "stream_components.h"
 
@@ -46,7 +48,64 @@ pad_handler_exit:
         gst_object_unref (sink_pad);
 }
 
-int setup_stream_components(StreamComponents *components) {
+static gboolean bus_callback(GstBus *bus, GstMessage *msg, gpointer data) {
+    StreamComponents *components = (StreamComponents*) data;
+
+    switch (GST_MESSAGE_TYPE(msg)) {
+        case GST_MESSAGE_EOS:
+            g_print("EOS\n");
+            break;
+
+        case GST_MESSAGE_ERROR:
+            GError *err = NULL;
+            gchar *debug_info = NULL;
+
+            gst_message_parse_error(
+                msg,
+                &err,
+                &debug_info
+            );
+
+            g_printerr(
+                "Error from %s: %s\n",
+                GST_OBJECT_NAME(msg->src),
+                err->message
+            );
+
+            g_printerr(
+                "Debug info: %s\n",
+                debug_info ? debug_info : "none"
+            );
+
+            g_clear_error(&err);
+            g_free(debug_info);
+
+            break;
+
+        case GST_MESSAGE_STREAM_START:
+            // seek to 0 with segment mode so we're always playing in segment mode
+            gboolean ok = gst_element_seek_simple(
+                components->pipeline,
+                GST_FORMAT_TIME,
+                GST_SEEK_FLAG_KEY_UNIT | GST_SEEK_FLAG_SNAP_BEFORE | GST_SEEK_FLAG_SEGMENT,
+                0
+            );
+
+            break;
+
+        case GST_MESSAGE_SEGMENT_DONE:
+            GstStateChangeReturn ret = gst_element_set_state(components->pipeline, GST_STATE_PAUSED);
+            break;
+    }
+    
+    return TRUE;
+}
+
+int setup_pipeline(StreamComponents *components, char *filename) {
+    // tear down the old pipeline
+    g_clear_object(&components->pipeline);
+    memset(components, 0, sizeof(*components));
+
     // build the source, sink, filters
     components->source          = gst_element_factory_make("filesrc", "source");
     components->demux           = gst_element_factory_make("qtdemux", "demux");
@@ -130,7 +189,10 @@ int setup_stream_components(StreamComponents *components) {
         gst_object_unref (components->pipeline);
         return -1;
     }
-        
+
+    // set the filename
+    g_object_set(components->source, "location", filename, NULL);
+
     // configure queues for livestreaming
     g_object_set(
         components->video_queue,
@@ -190,9 +252,6 @@ int setup_stream_components(StreamComponents *components) {
     g_object_set(components->whip_sink,
         "start-bitrate", 10000000,
         NULL); // start near actual rate
-
-    // set the file 
-    g_object_set(components->source, "location", "/videos/test.mp4", NULL);
     
     // set pipeline latency
     g_object_set(
@@ -225,6 +284,10 @@ int setup_stream_components(StreamComponents *components) {
 
     /* Connect to the pad-added signal */
     g_signal_connect(components->demux, "pad-added", G_CALLBACK (pad_added_handler), components);
+
+    // add bus watch to watch for signals
+    GstBus *bus = gst_element_get_bus(components->pipeline);
+    gst_bus_add_watch(bus, bus_callback, components);
 
     return 0;
 }

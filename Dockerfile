@@ -28,8 +28,7 @@ WORKDIR /app
 
 RUN mkdir /sockets
 
-RUN apt-get update
-RUN apt-get install -y \
+RUN apt-get update && apt-get install -y \
 gstreamer1.0-tools \
 gstreamer1.0-plugins-base \
 gstreamer1.0-plugins-good \
@@ -37,7 +36,14 @@ gstreamer1.0-plugins-bad \
 gstreamer1.0-libav \
 gstreamer1.0-nice \
 gstreamer1.0-plugins-ugly \
-libjansson-dev
+libjansson-dev \
+&& rm -rf /var/lib/apt/lists/*
+
+# # debug stuff
+# RUN apt-get update && apt-get install -y \
+# gdb \
+# libasan8 \
+# && rm -rf /var/lib/apt/lists/*
 
 COPY ./libs /app/webrtchttp/
 COPY ./bin/ /app/bin/
@@ -47,3 +53,4 @@ ENV GST_PLUGIN_PATH="/app/webrtchttp/"
 # RUN gst-inspect-1.0 whipclientsink
 
 CMD ["./bin/remuxrelay"]
+# CMD ["gdb", "./bin/remuxrelay"]

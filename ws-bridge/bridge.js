@@ -44,9 +44,16 @@ wss.on('connection', (ws) => {
     // just forward any data from the unix socket to the websocket
     relaySocket.on('data', async (dataBytesBuffer) => {
         // this is a buffer of bytes
-        // for now assume anything we get is a json and send it away
         // console.log("Unix event trigger:" + dataBytesBuffer.toString());
-        ws.send(dataBytesBuffer.toString());
+        
+        // split by newline
+        const data_message = dataBytesBuffer.toString().trim();
+        var jsons = data_message.split('\n');
+        
+        // assume each thing split my newline is a complete json
+        jsons.forEach((j) => ws.send(j));
+
+        // ws.send(dataBytesBuffer.toString());
     });
 
     ws.on('close', (data) => {

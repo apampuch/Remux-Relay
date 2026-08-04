@@ -5,7 +5,7 @@
 #include "glibconfig.h"
 #include "stream_components.h"
 
-void setup_socket(StreamComponents components);
+void setup_socket(StreamComponents *components);
 void close_socket();
 
 #endif

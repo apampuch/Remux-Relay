@@ -1,10 +1,4 @@
-const protocol = window.location.protocol === "https:"
-    ? "wss:"
-    : "ws:";
-const host = window.location.host;
-const ws = new WebSocket(`${protocol}//${host}/ws`);
-
-const pendingRequests = new Map();
+import { ws, pendingRequests, random_id, send_to_server } from "./websockets.js";
 
 // the stream duration is stored in seek_bar.max in milliseconds
 const seek_bar = document.getElementById("seekBar");
@@ -16,11 +10,6 @@ seek_bar.max = 0;
 // only update the seekbar from playing time while true
 var update_seekbar = true;
 
-function random_id() {
-    let new_id = Date.now() + Math.floor(Math.random() * 1_000_000_000);
-    // console.log(new_id);
-    return new_id;
-}
 
 function convertMsToTime(ms) {
     // Calculate total units
@@ -54,32 +43,23 @@ seek_bar.addEventListener("change", (event) => {
 // TODO maybe just get rid of the whole promise architecture and just take things as they come
 
 ws.addEventListener("open", async () => {
-    console.log("Connected to websocket.");
-
     // get the list of files
     list_files();
-
-    // update stream duration
-    var duration_obj = await get_duration();
-
-    seek_bar.max = duration_obj.stream_duration;
-    document.getElementById("totalDuration").textContent = convertMsToTime(duration_obj.stream_duration);
 });
 
 ws.addEventListener("message", (event) => {
     try {
         const msg = JSON.parse(event.data);
-        // console.log("Receiving: " + event.data);
 
         if (Object.hasOwn(msg, "id")) {
             const resolver = pendingRequests.get(msg.id);
             if (resolver) {
-                // console.log("Removing id: " + msg.id);
                 pendingRequests.delete(msg.id);
                 resolver(msg);
             } else {
                 console.warn("id not found:" + msg.id);
             }
+        // do we really need the update_type, what other update types are there gonna be?
         } else if (Object.hasOwn(msg, "update_type")) {
             if (msg.update_type == "position") {
                 if (!Object.hasOwn(msg, "new_position")) {
@@ -97,10 +77,22 @@ ws.addEventListener("message", (event) => {
                 seek_bar.value = msg.new_position;
                 document.getElementById("currentPosition").textContent = convertMsToTime(msg.new_position);
             }
-
+        }
+        // get duration on connect
+        if (Object.hasOwn(msg, "connection_cmd")) {
+            switch (msg.connection_cmd) {
+                case "connect":
+                    get_duration();
+            }
+        }
+        if (Object.hasOwn(msg, "stream_duration")) {
+            // update stream duration
+            seek_bar.max = msg.stream_duration;
+            document.getElementById("totalDuration").textContent = convertMsToTime(msg.stream_duration);
         }
     } catch (error) {
         console.log(event.data);
+        throw error;
     }
     
 });
@@ -108,14 +100,6 @@ ws.addEventListener("message", (event) => {
 ws.addEventListener("error", () => {
     console.log("ERROR");
 });
-
-function send_to_server(cmd) {
-    let send_str = JSON.stringify(cmd)
-
-    // console.log("Sending:" + send_str);
-
-    ws.send(send_str);
-}
 
 // function get_playing_state() {
 //     const id = random_id();
@@ -157,6 +141,24 @@ function play_pause() {
         pendingRequests.set(id, resolve);
         send_to_server(cmd);
     });
+}
+
+function start_video() {
+    // TODO do something if there are no videos
+
+    // get selected file string
+    const dropdown = document.getElementById("fileSelector");
+
+    const file_name = dropdown.selectedOptions[0].value;
+
+    // send it via websocket
+    const cmd = {
+        "command": "start_video",
+        "file": file_name,
+        "id": 0  // bogus ID to pass the check
+    };
+
+    send_to_server(cmd);
 }
 
 function seek(timestamp) {
@@ -212,3 +214,4 @@ async function list_files() {
 document.getElementById("playPauseButton").addEventListener("click", play_pause);
 document.getElementById("skipBackButton").addEventListener("click", () => seek("-5000"));
 document.getElementById("skipForwardButton").addEventListener("click", () => seek("+5000"));
+document.getElementById("playFileButton").addEventListener("click", start_video);
