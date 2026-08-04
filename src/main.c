@@ -37,8 +37,6 @@
 // }
 
 
-
-
 int main(int argc, char *argv[]) {
     /* Set up gstreamer stuff */
     StreamComponents *components = calloc(1, sizeof(StreamComponents));
