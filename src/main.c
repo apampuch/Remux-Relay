@@ -1,18 +1,17 @@
 #include "glib.h"
 #include "glibconfig.h"
-#include "gst/gstbus.h"
 // #include "gst/gstclock.h"
 #include "gst/gstelement.h"
 // #include "gst/gstformat.h"
-#include "gst/gstmessage.h"
+// #include "gst/gstmessage.h"
 // #include "gst/gstutils.h"
 #include <stddef.h>
 #include <gst/gst.h>
-#include <stdio.h>
+// #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "debug_probes.h"
+// #include "debug_probes.h"
 #include "stream_components.h"
 #include "socket_handlers.h"
 
