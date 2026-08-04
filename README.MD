@@ -71,7 +71,7 @@ networks:
 # Suggested Encode Options
 ```bash
 ffmpeg \
-  -i test.mkv \
+  -i test.mp4 \
   -map 0:v:0 \
   -map 0:a:0 \
   -c:v libx264 \
@@ -86,7 +86,7 @@ ffmpeg \
   -ac 2 \
   -map_metadata -1 \
   -map_chapters -1 \
-  output.mkv
+  output.mp4
 ```
 You MUST leave out b-frames.
 No min-keyint
