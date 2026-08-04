@@ -14,6 +14,6 @@ typedef struct _StreamComponents {
     GstElement *whip_sink;
 } StreamComponents;
 
-int setup_stream_components(StreamComponents *components);
+int setup_pipeline(StreamComponents *components, char *filename);
 
 #endif
